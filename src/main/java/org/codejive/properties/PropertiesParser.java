@@ -2,10 +2,12 @@ package org.codejive.properties;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.Spliterators;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 class PropertiesParser {
 
@@ -195,13 +197,23 @@ class PropertiesParser {
         return ch == -1;
     }
 
-    public static List<Token> tokens(Reader rdr) throws IOException {
-        List<Token> result = new ArrayList<>();
-        PropertiesParser p = new PropertiesParser(rdr);
-        Token token;
-        while ((token = p.nextToken()) != null) {
-            result.add(token);
-        }
-        return result;
+    public static Stream<Token> tokens(Reader rdr) throws IOException {
+        return StreamSupport.stream(new Spliterators.AbstractSpliterator<Token>(0, 0) {
+            final PropertiesParser p = new PropertiesParser(rdr);
+            @Override
+            public boolean tryAdvance(Consumer<? super Token> action) {
+                try {
+                    Token token = p.nextToken();
+                    if (token != null) {
+                        action.accept(token);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }, false);
     }
 }

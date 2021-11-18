@@ -8,6 +8,8 @@ import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 
 import org.codejive.properties.PropertiesParser.Token;
@@ -35,7 +37,7 @@ public class TestPropertiesParser {
     @Test
     void testTokens() throws IOException {
         StringReader rdr = new StringReader(props);
-        List<PropertiesParser.Token> tokens = PropertiesParser.tokens(rdr);
+        List<PropertiesParser.Token> tokens = PropertiesParser.tokens(rdr).collect(Collectors.toList());
         assertThat(
                 tokens,
                 equalTo(
@@ -82,8 +84,8 @@ public class TestPropertiesParser {
     @Test
     void testStringify() throws IOException {
         StringReader rdr = new StringReader(props);
-        List<PropertiesParser.Token> tokens = PropertiesParser.tokens(rdr);
-        String props2 = tokens.stream().map(Token::getText).collect(Collectors.joining());
+        Stream<Token> tokens = PropertiesParser.tokens(rdr);
+        String props2 = tokens.map(Token::getText).collect(Collectors.joining());
         assertThat(props2, equalTo(props));
     }
 }
