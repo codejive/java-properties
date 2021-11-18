@@ -60,9 +60,9 @@ public class TestPropertiesParser {
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.KEY, "three"),
                                 new Token(Type.SEPARATOR, "="),
-                                new Token(Type.VALUE, "and escapes\\n\\t\\r\\f"),
+                                new Token(Type.VALUE, "and escapes\\n\\t\\r\\f", "and escapes\n\t\r\f"),
                                 new Token(Type.WHITESPACE, "\n  "),
-                                new Token(Type.KEY, "\\ with\\ spaces"),
+                                new Token(Type.KEY, "\\ with\\ spaces", " with spaces"),
                                 new Token(Type.SEPARATOR, "   =    "),
                                 new Token(Type.VALUE, "everywhere"),
                                 new Token(Type.WHITESPACE, "  \n"),
@@ -72,11 +72,11 @@ public class TestPropertiesParser {
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.KEY, "multiline"),
                                 new Token(Type.SEPARATOR, " = "),
-                                new Token(Type.VALUE, "one \\\n    two  \\\n\r\tthree"),
+                                new Token(Type.VALUE, "one \\\n    two  \\\n\r\tthree", "one \n    two  \n\r\tthree"),
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.KEY, "key.4"),
                                 new Token(Type.SEPARATOR, " = "),
-                                new Token(Type.VALUE, "\\u1234"),
+                                new Token(Type.VALUE, "\\u1234", "\u1234"),
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.COMMENT, "# final comment"))));
     }
@@ -85,7 +85,7 @@ public class TestPropertiesParser {
     void testStringify() throws IOException {
         StringReader rdr = new StringReader(props);
         Stream<Token> tokens = PropertiesParser.tokens(rdr);
-        String props2 = tokens.map(Token::getText).collect(Collectors.joining());
+        String props2 = tokens.map(Token::getRaw).collect(Collectors.joining());
         assertThat(props2, equalTo(props));
     }
 }

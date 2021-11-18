@@ -21,10 +21,16 @@ class PropertiesParser {
 
     public static class Token {
         final Type type;
+        final String raw;
         final String text;
 
-        Token(Type type, String text) {
+        Token(Type type, String raw) {
+            this(type, raw, null);
+        }
+
+        Token(Type type, String raw, String text) {
             this.type = type;
+            this.raw = raw;
             this.text = text;
         }
 
@@ -32,8 +38,12 @@ class PropertiesParser {
             return type;
         }
 
+        public String getRaw() {
+            return raw;
+        }
+
         public String getText() {
-            return text;
+            return text != null ? text : raw;
         }
 
         @Override
@@ -41,17 +51,21 @@ class PropertiesParser {
             if (this == o) return true;
             if (!(o instanceof Token)) return false;
             Token token = (Token) o;
-            return text.equals(token.text);
+            return type == token.type && raw.equals(token.raw) && Objects.equals(text, token.text);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(text);
+            return Objects.hash(type, raw, text);
         }
 
         @Override
         public String toString() {
-            return "Token('" + type + ", " + text + "')";
+            if (text == null) {
+                return "Token(" + type + ", '" + raw + "')";
+            } else {
+                return "Token(" + type + ", '" + raw + "'" + ", '" + text + "')";
+            }
         }
     }
 
@@ -62,6 +76,7 @@ class PropertiesParser {
     private int pch;
     StringBuilder chr;
     StringBuilder str;
+    boolean hasEscapes;
 
     public PropertiesParser(Reader rdr) throws IOException {
         this.rdr = rdr;
@@ -100,11 +115,11 @@ class PropertiesParser {
                 nextState = null;
             }
             if (isValid.get()) {
-                str.append(chr);
                 nextChar();
             } else {
                 String text = (state == Type.VALUE || state == Type.COMMENT) ? trimmedString() : string();
-                Token token = new Token(state, text);
+                Token token = hasEscapes ? new Token(state, text, unescape(text)) :  new Token(state, text);
+                hasEscapes = false;
                 state = nextState;
                 return token;
             }
@@ -112,6 +127,10 @@ class PropertiesParser {
     }
 
     private void nextChar() throws IOException {
+        str.append(chr);
+        if (chr.length() > 0 && chr.charAt(0) == '\\') {
+            hasEscapes = true;
+        }
         if (pch == -1) {
             ch = rdr.read();
         } else {
@@ -137,6 +156,41 @@ class PropertiesParser {
         } else {
             readEol(ch);
         }
+    }
+
+    private static String unescape(String escape) {
+        StringBuilder txt = new StringBuilder();
+        for (int i = 0; i < escape.length(); i++) {
+            char ch = escape.charAt(i);
+            if (ch == '\\') {
+                ch = escape.charAt(++i);
+                switch (ch) {
+                    case 't':
+                        txt.append('\t');
+                        break;
+                    case 'f':
+                        txt.append('\f');
+                        break;
+                    case 'n':
+                        txt.append('\n');
+                        break;
+                    case 'r':
+                        txt.append('\r');
+                        break;
+                    case 'u':
+                        String num = escape.substring(i + 1, i + 5);
+                        txt.append((char) Integer.parseInt(num, 16));
+                        i += 4;
+                        break;
+                    default:
+                        txt.append(ch);
+                        break;
+                }
+            } else {
+                txt.append(ch);
+            }
+        }
+        return txt.toString();
     }
 
     private void readEol(int cch) throws IOException {
