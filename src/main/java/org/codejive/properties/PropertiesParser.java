@@ -5,7 +5,7 @@ import java.io.Reader;
 import java.util.Objects;
 import java.util.Spliterators;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -72,50 +72,46 @@ class PropertiesParser {
     private final Reader rdr;
 
     private Type state;
-    private int ch;
     private int pch;
-    StringBuilder chr;
     StringBuilder str;
     boolean hasEscapes;
 
     public PropertiesParser(Reader rdr) throws IOException {
         this.rdr = rdr;
         state = null;
-        chr = new StringBuilder();
         str = new StringBuilder();
-        pch = -1;
-        nextChar();
+        readChar();
     }
 
     public Token nextToken() throws IOException {
-        Supplier<Boolean> isValid = () -> false;
+        int ch = peekChar();
+        if (isEof(ch)) {
+            return null;
+        }
+        Function<Integer, Boolean> isValid = (c) -> false;
         Type nextState = null;
-        while (true) {
-            if (state == null) {
-                if (isCommentChar(ch)) {
-                    state = Type.COMMENT;
-                    isValid = () -> !isEol(ch);
-                    nextState = null;
-                } else if (isWhitespaceChar(ch)) {
-                    state = Type.WHITESPACE;
-                    isValid = () -> isWhitespaceChar(ch);
-                    nextState = null;
-                } else if (isEof(ch)) {
-                    return null;
-                } else {
-                    state = Type.KEY;
-                    isValid = () -> !isSeparatorChar(ch);
-                    nextState = Type.SEPARATOR;
-                }
-            } else if (state == Type.SEPARATOR) {
-                isValid = () -> isSeparatorChar(ch);
-                nextState = Type.VALUE;
-            } else if (state == Type.VALUE) {
-                isValid = () -> !isEol(ch);
-                nextState = null;
+        if (state == null) {
+            if (isCommentChar(ch)) {
+                state = Type.COMMENT;
+                isValid = this::isNotEol;
+            } else if (isWhitespaceChar(ch)) {
+                state = Type.WHITESPACE;
+                isValid = this::isWhitespaceChar;
+            } else {
+                state = Type.KEY;
+                isValid = (c) -> !isSeparatorChar(c);
+                nextState = Type.SEPARATOR;
             }
-            if (isValid.get()) {
-                nextChar();
+        } else if (state == Type.SEPARATOR) {
+            isValid = this::isSeparatorChar;
+            nextState = Type.VALUE;
+        } else if (state == Type.VALUE) {
+            isValid = this::isNotEol;
+        }
+        while (true) {
+            if (isValid.apply(ch)) {
+                addChar(readChar());
+                ch = peekChar();
             } else {
                 String text = (state == Type.VALUE || state == Type.COMMENT) ? trimmedString() : string();
                 Token token = hasEscapes ? new Token(state, text, unescape(text)) :  new Token(state, text);
@@ -126,29 +122,29 @@ class PropertiesParser {
         }
     }
 
-    private void nextChar() throws IOException {
-        str.append(chr);
-        if (chr.length() > 0 && chr.charAt(0) == '\\') {
-            hasEscapes = true;
-        }
-        if (pch == -1) {
-            ch = rdr.read();
-        } else {
-            ch = pch;
-            pch = -1;
-        }
-        chr.setLength(0);
-        chr.append((char) ch);
+    private int peekChar() {
+        return pch;
+    }
+
+    private int readChar() throws IOException {
+        int ch = pch;
+        pch = rdr.read();
+        return ch;
+    }
+
+    private void addChar(int ch) throws IOException {
+        str.append((char) ch);
         if (ch == '\\') {
-            int ch2 = rdr.read();
-            chr.append((char) ch2);
+            hasEscapes = true;
+            int ch2 = readChar();
+            str.append((char) ch2);
             if (ch2 == 'u') {
                 for (int i = 0; i < 4; i++) {
-                    int chu = rdr.read();
+                    int chu = readChar();
                     if (!isHexDigitChar(chu)) {
                         throw new IOException("Invalid unicode escape character: " + chu);
                     }
-                    chr.append((char) chu);
+                    str.append((char) chu);
                 }
             } else {
                 readEol(ch2);
@@ -193,16 +189,10 @@ class PropertiesParser {
         return txt.toString();
     }
 
-    private void readEol(int cch) throws IOException {
-        if (cch == '\n') {
-            // If the next char is a \r we'll add it
-            // to the current char buffer, otherwise
-            // we'll save the character for next time.
-            int nch = rdr.read();
-            if (nch == '\r') {
-                chr.append((char) nch);
-            } else {
-                pch = nch;
+    private void readEol(int ch) throws IOException {
+        if (ch == '\n') {
+            if (peekChar() == '\r') {
+                str.append((char) readChar());
             }
         }
     }
@@ -243,8 +233,8 @@ class PropertiesParser {
         return Character.isDigit(ch) || (uch >= 'A' && uch <= 'F');
     }
 
-    private boolean isEol(int ch) {
-        return ch == '\n' || ch == '\r' || isEof(ch);
+    private boolean isNotEol(int ch) {
+        return ch != '\n' && ch != '\r' && !isEof(ch);
     }
 
     private boolean isEof(int ch) {
