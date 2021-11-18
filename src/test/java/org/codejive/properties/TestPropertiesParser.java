@@ -1,6 +1,5 @@
 package org.codejive.properties;
 
-import static org.codejive.properties.PropertiesParser.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -11,8 +10,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
+import org.codejive.properties.PropertiesParser.Token;
+import org.codejive.properties.PropertiesParser.Type;
+
 public class TestPropertiesParser {
-    private String props =
+    private final String props =
             ""
                     + "#comment1\n"
                     + "#  comment2   \n"
@@ -27,7 +29,7 @@ public class TestPropertiesParser {
                     + "multiline = one \\\n"
                     + "    two  \\\n\r"
                     + "\tthree\n"
-                    + "key.4 = \u1234\n"
+                    + "key.4 = \\u1234\n"
                     + "# final comment";
 
     @Test
@@ -38,43 +40,43 @@ public class TestPropertiesParser {
                 tokens,
                 equalTo(
                         Arrays.asList(
-                                new CommentToken("#comment1"),
-                                new WhitespaceToken("\n"),
-                                new CommentToken("#  comment2"),
-                                new WhitespaceToken("   \n\n"),
-                                new CommentToken("! comment3"),
-                                new WhitespaceToken("\n"),
-                                new KeyToken("one"),
-                                new SeparatorToken("="),
-                                new ValueToken("simple"),
-                                new WhitespaceToken("\n"),
-                                new KeyToken("two"),
-                                new SeparatorToken("="),
-                                new ValueToken("value containing spaces"),
-                                new WhitespaceToken("\n\r"),
-                                new CommentToken("# another comment"),
-                                new WhitespaceToken("\n"),
-                                new KeyToken("three"),
-                                new SeparatorToken("="),
-                                new ValueToken("and escapes\\n\\t\\r\\f"),
-                                new WhitespaceToken("\n  "),
-                                new KeyToken("\\ with\\ spaces"),
-                                new SeparatorToken("   =    "),
-                                new ValueToken("everywhere"),
-                                new WhitespaceToken("  \n"),
-                                new KeyToken("altsep"),
-                                new SeparatorToken(":"),
-                                new ValueToken("value"),
-                                new WhitespaceToken("\n"),
-                                new KeyToken("multiline"),
-                                new SeparatorToken(" = "),
-                                new ValueToken("one \\\n    two  \\\n\r\tthree"),
-                                new WhitespaceToken("\n"),
-                                new KeyToken("key.4"),
-                                new SeparatorToken(" = "),
-                                new ValueToken("\u1234"),
-                                new WhitespaceToken("\n"),
-                                new CommentToken("# final comment"))));
+                                new Token(Type.COMMENT, "#comment1"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.COMMENT, "#  comment2"),
+                                new Token(Type.WHITESPACE, "   \n\n"),
+                                new Token(Type.COMMENT, "! comment3"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.KEY, "one"),
+                                new Token(Type.SEPARATOR, "="),
+                                new Token(Type.VALUE, "simple"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.KEY, "two"),
+                                new Token(Type.SEPARATOR, "="),
+                                new Token(Type.VALUE, "value containing spaces"),
+                                new Token(Type.WHITESPACE, "\n\r"),
+                                new Token(Type.COMMENT, "# another comment"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.KEY, "three"),
+                                new Token(Type.SEPARATOR, "="),
+                                new Token(Type.VALUE, "and escapes\\n\\t\\r\\f"),
+                                new Token(Type.WHITESPACE, "\n  "),
+                                new Token(Type.KEY, "\\ with\\ spaces"),
+                                new Token(Type.SEPARATOR, "   =    "),
+                                new Token(Type.VALUE, "everywhere"),
+                                new Token(Type.WHITESPACE, "  \n"),
+                                new Token(Type.KEY, "altsep"),
+                                new Token(Type.SEPARATOR, ":"),
+                                new Token(Type.VALUE, "value"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.KEY, "multiline"),
+                                new Token(Type.SEPARATOR, " = "),
+                                new Token(Type.VALUE, "one \\\n    two  \\\n\r\tthree"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.KEY, "key.4"),
+                                new Token(Type.SEPARATOR, " = "),
+                                new Token(Type.VALUE, "\\u1234"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.COMMENT, "# final comment"))));
     }
 
     @Test

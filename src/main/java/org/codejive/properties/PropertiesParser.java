@@ -5,14 +5,29 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 class PropertiesParser {
 
+    public enum Type {
+        KEY,
+        SEPARATOR,
+        VALUE,
+        COMMENT,
+        WHITESPACE
+    }
+
     public static class Token {
+        final Type type;
         final String text;
 
-        Token(String text) {
+        Token(Type type, String text) {
+            this.type = type;
             this.text = text;
+        }
+
+        public Type getType() {
+            return type;
         }
 
         public String getText() {
@@ -34,52 +49,13 @@ class PropertiesParser {
 
         @Override
         public String toString() {
-            return this.getClass().getSimpleName() + "{'" + text + "'}";
+            return "Token('" + type + ", " + text + "')";
         }
-    }
-
-    public static class KeyToken extends Token {
-        KeyToken(String text) {
-            super(text);
-        }
-    }
-
-    public static class ValueToken extends Token {
-        ValueToken(String text) {
-            super(text);
-        }
-    }
-
-    public static class SeparatorToken extends Token {
-        SeparatorToken(String text) {
-            super(text);
-        }
-    }
-
-    public static class CommentToken extends Token {
-        CommentToken(String text) {
-            super(text);
-        }
-    }
-
-    public static class WhitespaceToken extends Token {
-        WhitespaceToken(String text) {
-            super(text);
-        }
-    }
-
-    private enum State {
-        INIT,
-        KEY,
-        SEPARATOR,
-        VALUE,
-        COMMENT,
-        WHITESPACE
     }
 
     private final Reader rdr;
 
-    private State state;
+    private Type state;
     private int ch;
     private int pch;
     StringBuilder chr;
@@ -87,7 +63,7 @@ class PropertiesParser {
 
     public PropertiesParser(Reader rdr) throws IOException {
         this.rdr = rdr;
-        state = State.INIT;
+        state = null;
         chr = new StringBuilder();
         str = new StringBuilder();
         pch = -1;
@@ -95,64 +71,40 @@ class PropertiesParser {
     }
 
     public Token nextToken() throws IOException {
+        Supplier<Boolean> isValid = () -> false;
+        Type nextState = null;
         while (true) {
-            switch (state) {
-                case INIT:
-                    if (isCommentChar(ch)) {
-                        state = State.COMMENT;
-                    } else if (isWhitespaceChar(ch)) {
-                        state = State.WHITESPACE;
-                    } else if (isEof(ch)) {
-                        return null;
-                    } else {
-                        state = State.KEY;
-                    }
-                    break;
-                case KEY:
-                    if (!isSeparatorChar(ch)) {
-                        str.append(chr);
-                        nextChar();
-                    } else {
-                        state = State.SEPARATOR;
-                        return new KeyToken(string());
-                    }
-                    break;
-                case SEPARATOR:
-                    if (isSeparatorChar(ch)) {
-                        str.append(chr);
-                        nextChar();
-                    } else {
-                        state = State.VALUE;
-                        return new SeparatorToken(string());
-                    }
-                    break;
-                case VALUE:
-                    if (!isEol(ch)) {
-                        str.append(chr);
-                        nextChar();
-                    } else {
-                        state = State.INIT;
-                        return new ValueToken(trimmedString());
-                    }
-                    break;
-                case COMMENT:
-                    if (!isEol(ch)) {
-                        str.append(chr);
-                        nextChar();
-                    } else {
-                        state = State.INIT;
-                        return new CommentToken(trimmedString());
-                    }
-                    break;
-                case WHITESPACE:
-                    if (isWhitespaceChar(ch)) {
-                        str.append(chr);
-                        nextChar();
-                    } else {
-                        state = State.INIT;
-                        return new WhitespaceToken(string());
-                    }
-                    break;
+            if (state == null) {
+                if (isCommentChar(ch)) {
+                    state = Type.COMMENT;
+                    isValid = () -> !isEol(ch);
+                    nextState = null;
+                } else if (isWhitespaceChar(ch)) {
+                    state = Type.WHITESPACE;
+                    isValid = () -> isWhitespaceChar(ch);
+                    nextState = null;
+                } else if (isEof(ch)) {
+                    return null;
+                } else {
+                    state = Type.KEY;
+                    isValid = () -> !isSeparatorChar(ch);
+                    nextState = Type.SEPARATOR;
+                }
+            } else if (state == Type.SEPARATOR) {
+                isValid = () -> isSeparatorChar(ch);
+                nextState = Type.VALUE;
+            } else if (state == Type.VALUE) {
+                isValid = () -> !isEol(ch);
+                nextState = null;
+            }
+            if (isValid.get()) {
+                str.append(chr);
+                nextChar();
+            } else {
+                String text = (state == Type.VALUE || state == Type.COMMENT) ? trimmedString() : string();
+                Token token = new Token(state, text);
+                state = nextState;
+                return token;
             }
         }
     }
