@@ -3,7 +3,9 @@ package org.codejive.properties;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -22,5 +24,14 @@ public class TestProperties {
         assertThat(p.keySet(), contains("one", "two", "three", " with spaces", "altsep", "multiline", "key.4"));
         assertThat(p.values(), contains("simple", "value containing spaces", "and escapes\n\t\r\f", "everywhere",
                 "value", "one \n    two  \n\tthree", "\u1234"));
+    }
+
+    @Test
+    void testStore() throws IOException, URISyntaxException {
+        Path f = Paths.get(getClass().getResource("/test.properties").toURI());
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(new String(Files.readAllBytes(f))));
     }
 }

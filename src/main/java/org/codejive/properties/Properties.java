@@ -66,7 +66,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     public void load(Path file) throws IOException {
-        load(Files.newBufferedReader(file));
+        try (Reader br = Files.newBufferedReader(file)) {
+            load(br);
+        }
     }
 
     public void load(Reader reader) throws IOException {
@@ -101,8 +103,14 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     public void store(Path file) throws IOException {
-        store(Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING));
+        try (Writer bw = Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING)) {
+            store(bw);
+        }
     }
 
-    public void store(Writer writer) throws IOException {}
+    public void store(Writer writer) throws IOException {
+        for (PropertiesParser.Token token : tokens) {
+            writer.write(token.getRaw());
+        }
+    }
 }
