@@ -31,8 +31,8 @@ public class TestPropertiesParser {
                     + "multiline = one \\\n"
                     + "    two  \\\n\r"
                     + "\tthree\n"
-                    + "key.4 = \\u1234\n"
-                    + "# final comment";
+                    + "key.4 = \\u1234\n\r"
+                    + "  # final comment";
 
     @Test
     void testTokens() throws IOException {
@@ -45,7 +45,8 @@ public class TestPropertiesParser {
                                 new Token(Type.COMMENT, "#comment1"),
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.COMMENT, "#  comment2"),
-                                new Token(Type.WHITESPACE, "   \n\n"),
+                                new Token(Type.WHITESPACE, "   \n"),
+                                new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.COMMENT, "! comment3"),
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.KEY, "one"),
@@ -61,7 +62,8 @@ public class TestPropertiesParser {
                                 new Token(Type.KEY, "three"),
                                 new Token(Type.SEPARATOR, "="),
                                 new Token(Type.VALUE, "and escapes\\n\\t\\r\\f", "and escapes\n\t\r\f"),
-                                new Token(Type.WHITESPACE, "\n  "),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.WHITESPACE, "  "),
                                 new Token(Type.KEY, "\\ with\\ spaces", " with spaces"),
                                 new Token(Type.SEPARATOR, "   =    "),
                                 new Token(Type.VALUE, "everywhere"),
@@ -77,7 +79,8 @@ public class TestPropertiesParser {
                                 new Token(Type.KEY, "key.4"),
                                 new Token(Type.SEPARATOR, " = "),
                                 new Token(Type.VALUE, "\\u1234", "\u1234"),
-                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.WHITESPACE, "\n\r"),
+                                new Token(Type.WHITESPACE, "  "),
                                 new Token(Type.COMMENT, "# final comment"))));
     }
 

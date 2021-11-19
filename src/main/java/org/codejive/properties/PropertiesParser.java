@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Objects;
 import java.util.Spliterators;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -88,29 +89,31 @@ class PropertiesParser {
         if (isEof(ch)) {
             return null;
         }
-        Function<Integer, Boolean> isValid = (c) -> false;
+        int oldch = -1;
+        BiFunction<Integer, Integer, Boolean> isValid = (c, oldc) -> false;
         Type nextState = null;
         if (state == null) {
             if (isCommentChar(ch)) {
                 state = Type.COMMENT;
-                isValid = this::isNotEol;
+                isValid = (c, oldc) -> !isEol(c) && !isEof(c);
             } else if (isWhitespaceChar(ch)) {
                 state = Type.WHITESPACE;
-                isValid = this::isWhitespaceChar;
+                isValid = (c, oldc) -> isWhitespaceChar(c) && !isEol(oldc);
             } else {
                 state = Type.KEY;
-                isValid = (c) -> !isSeparatorChar(c);
+                isValid = (c, oldc) -> !isSeparatorChar(c);
                 nextState = Type.SEPARATOR;
             }
         } else if (state == Type.SEPARATOR) {
-            isValid = this::isSeparatorChar;
+            isValid = (c, oldc) -> isSeparatorChar(c);
             nextState = Type.VALUE;
         } else if (state == Type.VALUE) {
-            isValid = this::isNotEol;
+            isValid = (c, oldc) -> !isEol(c) && !isEof(c);
         }
         while (true) {
-            if (isValid.apply(ch)) {
+            if (isValid.apply(ch, oldch)) {
                 addChar(readChar());
+                oldch = ch;
                 ch = peekChar();
             } else {
                 String text = (state == Type.VALUE || state == Type.COMMENT) ? trimmedString() : string();
@@ -221,7 +224,7 @@ class PropertiesParser {
     }
 
     private boolean isWhitespaceChar(int ch) {
-        return ch == ' ' || ch == '\t' || ch == '\f' || ch == '\n' || ch == '\r';
+        return ch == ' ' || ch == '\t' || ch == '\f' || isEol(ch);
     }
 
     private boolean isCommentChar(int ch) {
@@ -233,8 +236,8 @@ class PropertiesParser {
         return Character.isDigit(ch) || (uch >= 'A' && uch <= 'F');
     }
 
-    private boolean isNotEol(int ch) {
-        return ch != '\n' && ch != '\r' && !isEof(ch);
+    private boolean isEol(int ch) {
+        return ch == '\n' || ch == '\r';
     }
 
     private boolean isEof(int ch) {
