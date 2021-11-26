@@ -68,7 +68,7 @@ public class TestProperties {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         assertThat(p.getComment("one"), contains("! comment3"));
         assertThat(p.getComment("two"), empty());
-        assertThat(p.getComment("three"), contains("! and a comment", "! block"));
+        assertThat(p.getComment("three"), contains("# another comment", "! and a comment", "! block"));
     }
 
     @Test

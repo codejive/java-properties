@@ -269,15 +269,8 @@ public class Properties extends AbstractMap<String, String> {
             idx--;
         }
         // Now find the first line of the comment block
-        int commentSym = -1;
         PropertiesParser.Token token;
         while (idx >= 0 && (token = tokens.get(idx)).getType() == PropertiesParser.Type.COMMENT) {
-            if (commentSym != -1 && commentSym != token.raw.charAt(0)) {
-                // Comment doesn't start with the same comment symbol, so the block ends here
-                break;
-            } else {
-                commentSym = token.raw.charAt(0);
-            }
             result.add(0, idx);
             // Skip any preceding whitespace making sure to stop at EOL
             while (--idx >= 0 && !tokens.get(idx).isEol()) {}
