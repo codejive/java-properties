@@ -25,6 +25,8 @@ public class TestPropertiesParser {
                     + "one=simple\n"
                     + "two=value containing spaces\n\r"
                     + "# another comment\n"
+                    + "! and a comment\n"
+                    + "! block\n"
                     + "three=and escapes\\n\\t\\r\\f\n"
                     + "  \\ with\\ spaces   =    everywhere  \n"
                     + "altsep:value\n"
@@ -58,6 +60,10 @@ public class TestPropertiesParser {
                                 new Token(Type.VALUE, "value containing spaces"),
                                 new Token(Type.WHITESPACE, "\n\r"),
                                 new Token(Type.COMMENT, "# another comment"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.COMMENT, "! and a comment"),
+                                new Token(Type.WHITESPACE, "\n"),
+                                new Token(Type.COMMENT, "! block"),
                                 new Token(Type.WHITESPACE, "\n"),
                                 new Token(Type.KEY, "three"),
                                 new Token(Type.SEPARATOR, "="),

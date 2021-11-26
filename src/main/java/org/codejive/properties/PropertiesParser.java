@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Spliterators;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -32,6 +31,9 @@ class PropertiesParser {
         Token(Type type, String raw, String text) {
             this.type = type;
             this.raw = raw;
+            if (raw.equals(text)) {
+                text = null;
+            }
             this.text = text;
         }
 
@@ -47,17 +49,22 @@ class PropertiesParser {
             return text != null ? text : raw;
         }
 
+        public boolean isEol() {
+            int ch = raw.charAt(raw.length() - 1);
+            return type == Type.WHITESPACE && (PropertiesParser.isEol(ch) || isEof(ch));
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (!(o instanceof Token)) return false;
             Token token = (Token) o;
-            return type == token.type && raw.equals(token.raw) && Objects.equals(text, token.text);
+            return type == token.type && Objects.equals(getText(), token.getText());
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(type, raw, text);
+            return Objects.hash(type, getText());
         }
 
         @Override
@@ -157,7 +164,34 @@ class PropertiesParser {
         }
     }
 
-    private static String unescape(String escape) {
+    private void readEol(int ch) throws IOException {
+        if (ch == '\n') {
+            if (peekChar() == '\r') {
+                str.append((char) readChar());
+            }
+        }
+    }
+
+    private String string() {
+        String result = str.toString();
+        str.setLength(0);
+        return result;
+    }
+
+    private String trimmedString() {
+        String result = string();
+        int last = result.length();
+        while (last > 0 && isWhitespaceChar(result.charAt(last - 1))) {
+            last--;
+        }
+        if (last < result.length()) {
+            str.append(result.substring(last));
+            result = result.substring(0, last);
+        }
+        return result;
+    }
+
+    static String unescape(String escape) {
         StringBuilder txt = new StringBuilder();
         for (int i = 0; i < escape.length(); i++) {
             char ch = escape.charAt(i);
@@ -192,55 +226,28 @@ class PropertiesParser {
         return txt.toString();
     }
 
-    private void readEol(int ch) throws IOException {
-        if (ch == '\n') {
-            if (peekChar() == '\r') {
-                str.append((char) readChar());
-            }
-        }
-    }
-
-    private String string() {
-        String result = str.toString();
-        str.setLength(0);
-        return result;
-    }
-
-    private String trimmedString() {
-        String result = string();
-        int last = result.length();
-        while (last > 0 && isWhitespaceChar(result.charAt(last - 1))) {
-            last--;
-        }
-        if (last < result.length()) {
-            str.append(result.substring(last));
-            result = result.substring(0, last);
-        }
-        return result;
-    }
-
-    private boolean isSeparatorChar(int ch) {
+    private static boolean isSeparatorChar(int ch) {
         return ch == ' ' || ch == '\t' || ch == '=' || ch == ':';
     }
 
-    private boolean isWhitespaceChar(int ch) {
+    private static boolean isWhitespaceChar(int ch) {
         return ch == ' ' || ch == '\t' || ch == '\f' || isEol(ch);
     }
 
-    private boolean isCommentChar(int ch) {
+    private static boolean isCommentChar(int ch) {
         return ch == '#' || ch == '!';
     }
 
-    private boolean isHexDigitChar(int ch) {
+    private static boolean isHexDigitChar(int ch) {
         int uch = Character.toUpperCase(ch);
         return Character.isDigit(ch) || (uch >= 'A' && uch <= 'F');
     }
 
-    private boolean isEol(int ch) {
+    private static boolean isEol(int ch) {
         return ch == '\n' || ch == '\r';
     }
 
-    private boolean isEof(int ch) {
+    private static boolean isEof(int ch) {
         return ch == -1;
     }
 
