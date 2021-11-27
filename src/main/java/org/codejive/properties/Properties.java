@@ -1,5 +1,7 @@
 package org.codejive.properties;
 
+import static org.codejive.properties.PropertiesParser.unescape;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -24,8 +26,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.codejive.properties.PropertiesParser.unescape;
 
 public class Properties extends AbstractMap<String, String> {
     private final LinkedHashMap<String, String> values = new LinkedHashMap<>();
@@ -85,7 +85,7 @@ public class Properties extends AbstractMap<String, String> {
 
     public String getRaw(String rawKey) {
         int idx = indexOf(unescape(rawKey));
-        if (idx >=0) {
+        if (idx >= 0) {
             return tokens.get(idx + 2).getRaw();
         } else {
             return null;
@@ -106,8 +106,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Works like `put()` but uses raw values for keys and values.
-     * This means these keys and values will not be escaped before being serialized.
+     * Works like `put()` but uses raw values for keys and values. This means these keys and values
+     * will not be escaped before being serialized.
+     *
      * @param rawKey key with which the specified value is to be associated
      * @param rawValue value to be associated with the specified key
      * @return the previous value associated with key, or null if there was no mapping for key.
@@ -155,20 +156,23 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Gather all the comments directly before the given key
-     * and return them as a list. The list will only contain
-     * those lines that immediately follow one another, once
-     * a non-comment line is encountered gathering will stop.
+     * Gather all the comments directly before the given key and return them as a list. The list
+     * will only contain those lines that immediately follow one another, once a non-comment line is
+     * encountered gathering will stop.
+     *
      * @param key The key to look for
-     * @return A list of comment strings or an empty list if
-     * no comments lines were found or the key doesn't exist.
+     * @return A list of comment strings or an empty list if no comments lines were found or the key
+     *     doesn't exist.
      */
     public List<String> getComment(String key) {
         return getComment(findCommentLines(key));
     }
 
     private List<String> getComment(List<Integer> indices) {
-        return Collections.unmodifiableList(indices.stream().map(idx -> tokens.get(idx).getText()).collect(Collectors.toList()));
+        return Collections.unmodifiableList(
+                indices.stream()
+                        .map(idx -> tokens.get(idx).getText())
+                        .collect(Collectors.toList()));
     }
 
     public List<String> setComment(String key, String... comments) {
@@ -205,7 +209,8 @@ public class Properties extends AbstractMap<String, String> {
         // Add any additional lines (when there are more new lines than old ones)
         int ins = idx;
         for (int j = i; j < newcs.size(); j++) {
-            tokens.add(ins++, new PropertiesParser.Token(PropertiesParser.Type.COMMENT, newcs.get(j)));
+            tokens.add(
+                    ins++, new PropertiesParser.Token(PropertiesParser.Type.COMMENT, newcs.get(j)));
             tokens.add(ins++, new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n"));
         }
 
@@ -213,11 +218,11 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Takes a list of comments and makes sure each of them starts with
-     * a valid comment character (either '#' or '!'). If only some lines
-     * have missing comment prefixes it will use the ones that were used
-     * on previous lines, if not the default will be the value passed as
+     * Takes a list of comments and makes sure each of them starts with a valid comment character
+     * (either '#' or '!'). If only some lines have missing comment prefixes it will use the ones
+     * that were used on previous lines, if not the default will be the value passed as
      * `preferredPrefix`.
+     *
      * @param comments list of comment lines
      * @param preferredPrefix the preferred prefix to use
      * @return list of comment lines
@@ -255,11 +260,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns a list of token indices pointing to all the comment lines
-     * in a comment block. A list of comments is considered a block when
-     * they are consecutive lines, without any empty lines in between,
-     * using the same comment symbol (so they are either all `!` comments
-     * or all `#` ones).
+     * Returns a list of token indices pointing to all the comment lines in a comment block. A list
+     * of comments is considered a block when they are consecutive lines, without any empty lines in
+     * between, using the same comment symbol (so they are either all `!` comments or all `#` ones).
      */
     private List<Integer> findCommentLines(int idx) {
         List<Integer> result = new ArrayList<>();
@@ -280,7 +283,8 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private int indexOf(String key) {
-        return tokens.indexOf(new PropertiesParser.Token(PropertiesParser.Type.KEY, escape(key, true), key));
+        return tokens.indexOf(
+                new PropertiesParser.Token(PropertiesParser.Type.KEY, escape(key, true), key));
     }
 
     private String escape(String raw, boolean forKey) {
@@ -290,12 +294,12 @@ public class Properties extends AbstractMap<String, String> {
         raw = raw.replace("\f", "\\f");
         if (forKey) {
             raw = raw.replace(" ", "\\ ");
-        } else {
-            if (raw.charAt(raw.length() - 1) == ' ') {
-                raw = raw.substring(0, raw.length() - 1) + "\\ ";
-            }
         }
-        raw = replace(raw, "[^\\x{0000}-\\x{00FF}]", m -> "\\\\u" + Integer.toString(m.group(0).charAt(0), 16));
+        raw =
+                replace(
+                        raw,
+                        "[^\\x{0000}-\\x{00FF}]",
+                        m -> "\\\\u" + Integer.toString(m.group(0).charAt(0), 16));
         return raw;
     }
 
@@ -314,6 +318,16 @@ public class Properties extends AbstractMap<String, String> {
         return resultString.toString();
     }
 
+    public java.util.Properties asJUProperties() {
+        return asJUProperties(null);
+    }
+
+    public java.util.Properties asJUProperties(java.util.Properties defaults) {
+        java.util.Properties p = new java.util.Properties(defaults);
+        p.putAll(this);
+        return p;
+    }
+
     public void load(Path file) throws IOException {
         try (Reader br = Files.newBufferedReader(file)) {
             load(br);
@@ -326,8 +340,7 @@ public class Properties extends AbstractMap<String, String> {
                 reader instanceof BufferedReader
                         ? (BufferedReader) reader
                         : new BufferedReader(reader);
-        List<PropertiesParser.Token> ts = PropertiesParser.tokens(br)
-                .collect(Collectors.toList());
+        List<PropertiesParser.Token> ts = PropertiesParser.tokens(br).collect(Collectors.toList());
         tokens.addAll(ts);
         String key = null;
         for (PropertiesParser.Token token : tokens) {

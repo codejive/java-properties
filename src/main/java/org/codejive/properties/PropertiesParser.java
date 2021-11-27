@@ -123,8 +123,11 @@ class PropertiesParser {
                 oldch = ch;
                 ch = peekChar();
             } else {
-                String text = (state == Type.VALUE || state == Type.COMMENT) ? trimmedString() : string();
-                Token token = hasEscapes ? new Token(state, text, unescape(text)) :  new Token(state, text);
+                String text = string();
+                Token token =
+                        hasEscapes
+                                ? new Token(state, text, unescape(text))
+                                : new Token(state, text);
                 hasEscapes = false;
                 state = nextState;
                 return token;
@@ -178,19 +181,6 @@ class PropertiesParser {
         return result;
     }
 
-    private String trimmedString() {
-        String result = string();
-        int last = result.length();
-        while (last > 0 && isWhitespaceChar(result.charAt(last - 1))) {
-            last--;
-        }
-        if (last < result.length()) {
-            str.append(result.substring(last));
-            result = result.substring(0, last);
-        }
-        return result;
-    }
-
     static String unescape(String escape) {
         StringBuilder txt = new StringBuilder();
         for (int i = 0; i < escape.length(); i++) {
@@ -214,6 +204,20 @@ class PropertiesParser {
                         String num = escape.substring(i + 1, i + 5);
                         txt.append((char) Integer.parseInt(num, 16));
                         i += 4;
+                        break;
+                    case '\n':
+                        // Skip the next character if it's a '\r'
+                        if (i < escape.length() && escape.charAt(i + 1) == '\r') {
+                            i++;
+                        }
+                        // fall-through!
+                    case '\r':
+                        // Skip any leading whitespace
+                        while (i < escape.length()
+                                && isWhitespaceChar(ch = escape.charAt(i + 1))
+                                && !isEol(ch)) {
+                            i++;
+                        }
                         break;
                     default:
                         txt.append(ch);
@@ -252,22 +256,25 @@ class PropertiesParser {
     }
 
     public static Stream<Token> tokens(Reader rdr) throws IOException {
-        return StreamSupport.stream(new Spliterators.AbstractSpliterator<Token>(0, 0) {
-            final PropertiesParser p = new PropertiesParser(rdr);
-            @Override
-            public boolean tryAdvance(Consumer<? super Token> action) {
-                try {
-                    Token token = p.nextToken();
-                    if (token != null) {
-                        action.accept(token);
-                        return true;
-                    } else {
-                        return false;
+        return StreamSupport.stream(
+                new Spliterators.AbstractSpliterator<Token>(0, 0) {
+                    final PropertiesParser p = new PropertiesParser(rdr);
+
+                    @Override
+                    public boolean tryAdvance(Consumer<? super Token> action) {
+                        try {
+                            Token token = p.nextToken();
+                            if (token != null) {
+                                action.accept(token);
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
                     }
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        }, false);
+                },
+                false);
     }
 }
