@@ -94,13 +94,12 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public String put(String key, String value) {
-        String rawKey = escape(key, true);
         String rawValue = escape(value, false);
         if (values.containsKey(key)) {
-            int idx = indexOf(key);
-            addNew(idx, rawKey, key, rawValue, value);
+            replaceValue(key, rawValue, value);
         } else {
-            addNew(-1, rawKey, key, rawValue, value);
+            String rawKey = escape(key, true);
+            addNewKeyValue(rawKey, key, rawValue, value);
         }
         return values.put(key, value);
     }
@@ -117,36 +116,34 @@ public class Properties extends AbstractMap<String, String> {
         String key = unescape(rawKey);
         String value = unescape(rawValue);
         if (values.containsKey(key)) {
-            int idx = indexOf(key);
-            addNew(idx, rawKey, key, rawValue, value);
+            replaceValue(key, rawValue, value);
         } else {
-            addNew(-1, rawKey, key, rawValue, value);
+            addNewKeyValue(rawKey, key, rawValue, value);
         }
         return values.put(key, value);
     }
 
+    private void replaceValue(String key, String rawValue, String value) {
+        int idx = indexOf(key);
+        tokens.remove(idx + 2);
+        tokens.add(
+                idx + 2, new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
+    }
+
     // Add new tokens to the end of the list of tokens
-    private void addNew(int index, String rawKey, String key, String rawValue, String value) {
+    private void addNewKeyValue(String rawKey, String key, String rawValue, String value) {
         // Add a newline whitespace token if necessary
-        int idx = index >= 0 ? index : tokens.size();
+        int idx = tokens.size();
         if (idx > 0) {
             PropertiesParser.Token token = tokens.get(idx - 1);
             if (token.getType() != PropertiesParser.Type.WHITESPACE) {
-                addToken(index, new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n"));
+                tokens.add(new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n"));
             }
         }
         // Add tokens for key, separator and value
-        addToken(index, new PropertiesParser.Token(PropertiesParser.Type.KEY, rawKey, key));
-        addToken(index, new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
-        addToken(index, new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
-    }
-
-    private void addToken(int index, PropertiesParser.Token token) {
-        if (index >= 0) {
-            tokens.add(index, token);
-        } else {
-            tokens.add(token);
-        }
+        tokens.add(new PropertiesParser.Token(PropertiesParser.Type.KEY, rawKey, key));
+        tokens.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
+        tokens.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
     @Override

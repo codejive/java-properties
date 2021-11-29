@@ -197,6 +197,44 @@ public class TestProperties {
     }
 
     @Test
+    void testPutReplaceFirst() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        p.put("one", "simple");
+        p.put("two", "value containing spaces");
+        p.put("three", "and escapes\n\t\r\f");
+        p.put("one", "replaced");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(
+                sw.toString(), equalTo(readAll(getResource("/test-putreplacefirst.properties"))));
+    }
+
+    @Test
+    void testPutReplaceMiddle() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        p.put("one", "simple");
+        p.put("two", "value containing spaces");
+        p.put("three", "and escapes\n\t\r\f");
+        p.put("two", "replaced");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(
+                sw.toString(), equalTo(readAll(getResource("/test-putreplacemiddle.properties"))));
+    }
+
+    @Test
+    void testPutReplaceLast() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        p.put("one", "simple");
+        p.put("two", "value containing spaces");
+        p.put("three", "and escapes\n\t\r\f");
+        p.put("three", "replaced");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-putreplacelast.properties"))));
+    }
+
+    @Test
     public void testInteropLoad() throws IOException, URISyntaxException {
         java.util.Properties p = new java.util.Properties();
         try (Reader br = Files.newBufferedReader(getResource("/test.properties"))) {
