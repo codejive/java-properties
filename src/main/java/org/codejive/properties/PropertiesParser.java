@@ -9,25 +9,60 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * A parser that given a text input that follows the standard Java Properties file format will
+ * return a stream of tokens. These tokens will contain _all_ characters that were read from the
+ * input which makes it possible to exactly recreate the original, including all whitespace and
+ * comments.
+ */
 class PropertiesParser {
 
+    /** The type of token. */
     public enum Type {
+        /** The key part of a key-value pair */
         KEY,
+        /** The separator between a key and a value */
         SEPARATOR,
+        /** The value part of a key-value pair */
         VALUE,
+        /** A comment, both # and ! */
         COMMENT,
+        /**
+         * Any whitespace. Multiple consecutive lines will be split into separate tokens at the
+         * end-of-line character(s).
+         */
         WHITESPACE
     }
 
+    /**
+     * Tokens are returned by the parser for each part if the input. Their type is defined by <code>
+     * Type</code> and they have both a raw value, meaning the exact value as it was encountered in
+     * the input, and a text value, which is the raw value after all escape sequences have been
+     * processed.
+     */
     public static class Token {
         final Type type;
         final String raw;
         final String text;
 
+        /**
+         * Constructor for tokens where the raw value and the text value are exactly the same.
+         *
+         * @param type The token's type
+         * @param raw The token's value
+         */
         Token(Type type, String raw) {
             this(type, raw, null);
         }
 
+        /**
+         * The constructor for tokens that have a raw value and a processed value where escape
+         * sequences have been turned into their actual values.
+         *
+         * @param type The token's type
+         * @param raw The token's raw value (including escape sequences)
+         * @param text The token's processed value (no escape sequences)
+         */
         Token(Type type, String raw, String text) {
             this.type = type;
             this.raw = raw;
@@ -37,18 +72,40 @@ class PropertiesParser {
             this.text = text;
         }
 
+        /**
+         * Returns the token's type
+         *
+         * @return The token's type
+         */
         public Type getType() {
             return type;
         }
 
+        /**
+         * Returns the token's unprocessed/raw value. Meaning this value can contain escape
+         * sequences.
+         *
+         * @return a string containing the token's raw value
+         */
         public String getRaw() {
             return raw;
         }
 
+        /**
+         * Returns the token's processed value. Meaning this value will not contain any escape
+         * sequences but only actual characters.
+         *
+         * @return
+         */
         public String getText() {
             return text != null ? text : raw;
         }
 
+        /**
+         * Determines if this token is the last one in a line.
+         *
+         * @return true if the token is the last in a line, false otherwise
+         */
         public boolean isEol() {
             int ch = raw.charAt(raw.length() - 1);
             return type == Type.WHITESPACE && (PropertiesParser.isEol(ch) || isEof(ch));
@@ -81,9 +138,15 @@ class PropertiesParser {
 
     private Type state;
     private int pch;
-    StringBuilder str;
-    boolean hasEscapes;
+    private StringBuilder str;
+    private boolean hasEscapes;
 
+    /**
+     * Constructor that takes a <code>Reader</code> for reading the input to parse.
+     *
+     * @param rdr a <code>Reader</code> object
+     * @throws IOException Thrown when any IO error occurs during parsing
+     */
     public PropertiesParser(Reader rdr) throws IOException {
         this.rdr = rdr;
         state = null;
@@ -91,6 +154,42 @@ class PropertiesParser {
         readChar();
     }
 
+    /**
+     * Returns a stream of tokens for the given input.
+     *
+     * @param rdr a <code>Reader</code> object
+     * @return a <code>Stream</code> of <code>Token</code>
+     * @throws IOException Thrown when any IO error occurs during parsing
+     */
+    public static Stream<Token> tokens(Reader rdr) throws IOException {
+        return StreamSupport.stream(
+                new Spliterators.AbstractSpliterator<Token>(0, 0) {
+                    final PropertiesParser p = new PropertiesParser(rdr);
+
+                    @Override
+                    public boolean tryAdvance(Consumer<? super Token> action) {
+                        try {
+                            Token token = p.nextToken();
+                            if (token != null) {
+                                action.accept(token);
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    }
+                },
+                false);
+    }
+
+    /**
+     * Returns the next token in the input or <code>null</code> if the end of the input was reached.
+     *
+     * @return a <code>Token</code> or <code>null</code>
+     * @throws IOException Thrown when any IO error occurs during parsing
+     */
     public Token nextToken() throws IOException {
         int ch = peekChar();
         if (isEof(ch)) {
@@ -253,28 +352,5 @@ class PropertiesParser {
 
     private static boolean isEof(int ch) {
         return ch == -1;
-    }
-
-    public static Stream<Token> tokens(Reader rdr) throws IOException {
-        return StreamSupport.stream(
-                new Spliterators.AbstractSpliterator<Token>(0, 0) {
-                    final PropertiesParser p = new PropertiesParser(rdr);
-
-                    @Override
-                    public boolean tryAdvance(Consumer<? super Token> action) {
-                        try {
-                            Token token = p.nextToken();
-                            if (token != null) {
-                                action.accept(token);
-                                return true;
-                            } else {
-                                return false;
-                            }
-                        } catch (IOException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                },
-                false);
     }
 }

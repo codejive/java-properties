@@ -27,6 +27,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * This class is a replacement for <code>java.util.Properties</code>, with the difference that it
+ * properly supports comments both for reading and writing. It also maintains an exact
+ * representation of the input, meaning that when an input is read and later written out again the
+ * output will match the input exactly. Methods exist for obtaining and setting comments on
+ * key-value pairs.
+ */
 public class Properties extends AbstractMap<String, String> {
     private final LinkedHashMap<String, String> values = new LinkedHashMap<>();
     private final List<PropertiesParser.Token> tokens = new ArrayList<>();
@@ -64,6 +71,12 @@ public class Properties extends AbstractMap<String, String> {
         };
     }
 
+    /**
+     * Works like <code>keySet()</code> but returning the keys' raw values. Meaning that the keys
+     * haven't been unescaped before being returned.
+     *
+     * @return A set of raw key values
+     */
     public Set<String> rawKeySet() {
         return tokens.stream()
                 .filter(t -> t.type == PropertiesParser.Type.KEY)
@@ -71,6 +84,12 @@ public class Properties extends AbstractMap<String, String> {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    /**
+     * Works like <code>values()</code> but returning the raw values. Meaning that the values have
+     * not been unescaped before being returned.
+     *
+     * @return a collection of raw values.
+     */
     public Collection<String> rawValues() {
         return IntStream.range(0, tokens.size())
                 .filter(idx -> tokens.get(idx).type == PropertiesParser.Type.KEY)
@@ -83,6 +102,13 @@ public class Properties extends AbstractMap<String, String> {
         return values.get(key);
     }
 
+    /**
+     * Works like <code>get()</code> but returns the raw value associated with the given raw key.
+     * This means that the value won't be unescaped before being returned.
+     *
+     * @param rawKey The key too look up in raw format
+     * @return A raw value or <code>null</code> if the key wasn't found
+     */
     public String getRaw(String rawKey) {
         int idx = indexOf(unescape(rawKey));
         if (idx >= 0) {
@@ -105,8 +131,8 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Works like `put()` but uses raw values for keys and values. This means these keys and values
-     * will not be escaped before being serialized.
+     * Works like <code>put()</code> but uses raw values for keys and values. This means these keys
+     * and values will not be escaped before being stored.
      *
      * @param rawKey key with which the specified value is to be associated
      * @param rawValue value to be associated with the specified key
@@ -155,7 +181,8 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * Gather all the comments directly before the given key and return them as a list. The list
      * will only contain those lines that immediately follow one another, once a non-comment line is
-     * encountered gathering will stop.
+     * encountered gathering will stop. The returned values will include the comment character that
+     * the line started with in the original input.
      *
      * @param key The key to look for
      * @return A list of comment strings or an empty list if no comments lines were found or the key
@@ -172,10 +199,34 @@ public class Properties extends AbstractMap<String, String> {
                         .collect(Collectors.toList()));
     }
 
+    /**
+     * Adds the given comments to the item indicated by the given key. Each comment will be put on a
+     * separate line. Each comment should start with one of the valid comment symbols <code>#</code>
+     * or <code>!</code>, but if none is encountered the code will select one for you (it will look
+     * at any existing comments, or at symbols found on previous items and as a last result will use
+     * <code># </code>).
+     *
+     * @param key The key to look for
+     * @param comments The comments to add to the item
+     * @return The previous list of comments, if any
+     * @throws NoSuchElementException Thrown when they key couldn't be found
+     */
     public List<String> setComment(String key, String... comments) {
         return setComment(key, Arrays.asList(comments));
     }
 
+    /**
+     * Adds the list of comments to the item indicated by the given key. Each comment will be put on
+     * a separate line. Each comment should start with one of the valid comment symbols <code>#
+     * </code> or <code>!</code>, but if none is encountered the code will select one for you (it
+     * will look at any existing comments, or at symbols found on previous items and as a last
+     * result will use <code># </code>).
+     *
+     * @param key The key to look for
+     * @param comments The list of comments to add to the item
+     * @return The previous list of comments, if any
+     * @throws NoSuchElementException Thrown when they key couldn't be found
+     */
     public List<String> setComment(String key, List<String> comments) {
         int idx = indexOf(key);
         if (idx < 0) {
@@ -315,22 +366,49 @@ public class Properties extends AbstractMap<String, String> {
         return resultString.toString();
     }
 
+    /**
+     * Returns a <code>java.util.Properties</code> with the same contents as this object. The
+     * information is a copy, changes to one Properties object will not affect the other.
+     *
+     * @return a <code>java.util.Properties</code> object
+     */
     public java.util.Properties asJUProperties() {
         return asJUProperties(null);
     }
 
+    /**
+     * Returns a <code>java.util.Properties</code> with the same contents as this object and with
+     * the given <code>java.util.Properties</code> object as fallback. The information is a copy,
+     * changes to one Properties object will not affect the other.
+     *
+     * @return a <code>java.util.Properties</code> object
+     */
     public java.util.Properties asJUProperties(java.util.Properties defaults) {
         java.util.Properties p = new java.util.Properties(defaults);
         p.putAll(this);
         return p;
     }
 
+    /**
+     * Loads the contents from the given file and stores it in this object. This includes not only
+     * key-value pairs but also all whitespace and any comments that are encountered.
+     *
+     * @param file a path to the file to load
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
     public void load(Path file) throws IOException {
         try (Reader br = Files.newBufferedReader(file)) {
             load(br);
         }
     }
 
+    /**
+     * Loads the contents from the reader and stores it in this object. This includes not only
+     * key-value pairs but also all whitespace and any comments that are encountered.
+     *
+     * @param reader a <code>Reader</code> object
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
     public void load(Reader reader) throws IOException {
         tokens.clear();
         BufferedReader br =
@@ -349,24 +427,50 @@ public class Properties extends AbstractMap<String, String> {
         }
     }
 
+    /**
+     * Returns a <code>Properties</code> with the contents read from the given file. This includes
+     * not only key-value pairs but also all whitespace and any comments that are encountered.
+     *
+     * @param file a path to the file to load
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
     public static Properties loadProperties(Path file) throws IOException {
         Properties props = new Properties();
         props.load(file);
         return props;
     }
 
+    /**
+     * Returns a <code>Properties</code> with the contents read from the given file. This includes
+     * not only key-value pairs but also all whitespace and any comments that are encountered.
+     *
+     * @param reader a <code>Reader</code> object
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
     public static Properties loadProperties(Reader reader) throws IOException {
         Properties props = new Properties();
         props.load(reader);
         return props;
     }
 
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file a path to the file to write
+     * @throws IOException
+     */
     public void store(Path file) throws IOException {
         try (Writer bw = Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING)) {
             store(bw);
         }
     }
 
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param writer a <code>Writer</code> object
+     * @throws IOException
+     */
     public void store(Writer writer) throws IOException {
         for (PropertiesParser.Token token : tokens) {
             writer.write(token.getRaw());
