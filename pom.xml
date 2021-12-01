@@ -4,7 +4,7 @@
 
     <groupId>org.codejive</groupId>
     <artifactId>java-properties</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2-SNAPSHOT</version>
 
     <name>Java Properties parser</name>
     <description>A simple Java Properties parser that retains the exact format of the input file, including any comments</description>
@@ -169,7 +169,7 @@
         <connection>scm:git:git://github.com/codejive/java-properties.git</connection>
         <developerConnection>scm:git:git@github.com:codejive/java-properties.git</developerConnection>
         <url>http://github.com/codejive/java-properties</url>
-        <tag>v0.0.1</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <distributionManagement>
