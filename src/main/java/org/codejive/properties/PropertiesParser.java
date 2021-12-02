@@ -45,6 +45,9 @@ class PropertiesParser {
         final String raw;
         final String text;
 
+        public static final Token EOL =
+                new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n");
+
         /**
          * Constructor for tokens where the raw value and the text value are exactly the same.
          *
@@ -102,13 +105,23 @@ class PropertiesParser {
         }
 
         /**
-         * Determines if this token is the last one in a line.
+         * Determines if this token is a whitespace ending with an EOL marker.
          *
-         * @return true if the token is the last in a line, false otherwise
+         * @return true if whitespace ending in EOL, false otherwise
          */
         public boolean isEol() {
             int ch = raw.charAt(raw.length() - 1);
-            return type == Type.WHITESPACE && (PropertiesParser.isEol(ch) || isEof(ch));
+            return type == Type.WHITESPACE && PropertiesParser.isEol(ch);
+        }
+
+        /**
+         * Determines if this token is a whitespace NOT ending with an EOL marker.
+         *
+         * @return true if whitespace NOT ending in EOL, false otherwise
+         */
+        public boolean isWs() {
+            int ch = raw.charAt(raw.length() - 1);
+            return type == Type.WHITESPACE && !PropertiesParser.isEol(ch);
         }
 
         @Override
