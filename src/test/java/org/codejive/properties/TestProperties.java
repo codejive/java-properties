@@ -1,17 +1,9 @@
 package org.codejive.properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,6 +56,15 @@ public class TestProperties {
     }
 
     @Test
+    void testStoreHeader() throws IOException, URISyntaxException {
+        Path f = getResource("/test.properties");
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw, "A header line");
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-storeheader.properties"))));
+    }
+
+    @Test
     void testGet() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         assertThat(p.get("one"), equalTo("simple"));
@@ -73,6 +74,46 @@ public class TestProperties {
         assertThat(p.get("altsep"), equalTo("value"));
         assertThat(p.get("multiline"), equalTo("one two  three"));
         assertThat(p.get("key.4"), equalTo("\u1234"));
+    }
+
+    @Test
+    void testGetProperty() throws IOException, URISyntaxException {
+        Properties pdef = Properties.loadProperties(getResource("/test.properties"));
+        Properties p = new Properties(pdef);
+        p.setProperty("two", "a different two");
+        p.setProperty("altsep", "");
+        p.setProperty("five", "5", "a new comment");
+        assertThat(p, aMapWithSize(3));
+        assertThat(p.keySet(), contains("two", "altsep", "five"));
+        assertThat(p.stringPropertyNames(), hasSize(8));
+        assertThat(
+                p.stringPropertyNames(),
+                contains(
+                        "one",
+                        "two",
+                        "three",
+                        " with spaces",
+                        "altsep",
+                        "multiline",
+                        "key.4",
+                        "five"));
+        assertThat(p.getProperty("one"), equalTo("simple"));
+        assertThat(p.getPropertyComment("one"), contains("! comment3"));
+        assertThat(p.getProperty("two"), equalTo("a different two"));
+        assertThat(p.getPropertyComment("two"), empty());
+        assertThat(p.getProperty("three"), equalTo("and escapes\n\t\r\f"));
+        assertThat(
+                p.getPropertyComment("three"),
+                contains("# another comment", "! and a comment", "! block"));
+        assertThat(p.getProperty(" with spaces"), equalTo("everywhere  "));
+        assertThat(p.getProperty("altsep"), equalTo(""));
+        assertThat(p.getProperty("multiline"), equalTo("one two  three"));
+        assertThat(p.getProperty("key.4"), equalTo("\u1234"));
+        assertThat(p.getProperty("five"), equalTo("5"));
+        assertThat(p.getPropertyComment("five"), contains("# a new comment"));
+        StringWriter sw = new StringWriter();
+        p.list(new PrintWriter(sw));
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-getproperty.properties"))));
     }
 
     @Test
@@ -154,6 +195,22 @@ public class TestProperties {
     }
 
     @Test
+    void testSetProperty() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        p.setProperty("one", "simple", "! comment3");
+        p.setProperty("two", "value containing spaces");
+        p.setProperty(
+                "three", "and escapes\n\t\r\f", "# another comment", "! and a comment", "! block");
+        p.setProperty(" with spaces", "everywhere  ");
+        p.setProperty("altsep", "value");
+        p.setProperty("multiline", "one two  three");
+        p.setProperty("key.4", "\u1234");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-setproperty.properties"))));
+    }
+
+    @Test
     void testPutRaw() throws IOException, URISyntaxException {
         Properties p = new Properties();
         p.putRaw("one", "simple");
@@ -232,6 +289,39 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString(), equalTo(readAll(getResource("/test-putreplacelast.properties"))));
+    }
+
+    @Test
+    void testPutNew() throws IOException, URISyntaxException {
+        Path f = getResource("/test.properties");
+        Properties p = Properties.loadProperties(f);
+        p.put("five", "5");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-putnew.properties"))));
+    }
+
+    @Test
+    void testPutFirstWithHeader() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(
+                    sw.toString(),
+                    equalTo(readAll(getResource("/test-putfirstwithheader.properties"))));
+        }
+    }
+
+    @Test
+    void testRemoveComment() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.setComment("one");
+        assertThat(p.getComment("one"), empty());
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removecomment.properties"))));
     }
 
     @Test
