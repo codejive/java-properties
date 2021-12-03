@@ -33,7 +33,7 @@
         <junit.version>5.7.1</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
         <spotless.version>2.12.2</spotless.version>
-        <google-java-format.version>1.9</google-java-format.version>
+        <google-java-format.version>1.7</google-java-format.version>
     </properties>
 
     <dependencies>
