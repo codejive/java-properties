@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.Iterator;
 import org.junit.jupiter.api.Test;
 
 public class TestProperties {
@@ -312,6 +313,72 @@ public class TestProperties {
                     sw.toString(),
                     equalTo(readAll(getResource("/test-putfirstwithheader.properties"))));
         }
+    }
+
+    @Test
+    void testRemoveFirst() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.remove("one");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removefirst.properties"))));
+    }
+
+    @Test
+    void testRemoveMiddle() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.remove("three");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removemiddle.properties"))));
+    }
+
+    @Test
+    void testRemoveLast() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.remove("key.4");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removelast.properties"))));
+    }
+
+    @Test
+    void testRemoveAll() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.remove("one");
+        p.remove("two");
+        p.remove("three");
+        p.remove(" with spaces");
+        p.remove("altsep");
+        p.remove("multiline");
+        p.remove("key.4");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removeall.properties"))));
+    }
+
+    @Test
+    void testRemoveMiddleIterator() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        Iterator iter = p.keySet().iterator();
+        while (iter.hasNext()) {
+            if (iter.next().equals("three")) {
+                iter.remove();
+                break;
+            }
+        }
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-removemiddle.properties"))));
+    }
+
+    @Test
+    void testClear() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        p.clear();
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString(), equalTo(readAll(getResource("/test-clear.properties"))));
     }
 
     @Test
