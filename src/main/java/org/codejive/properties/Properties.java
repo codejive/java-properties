@@ -210,7 +210,9 @@ public class Properties extends AbstractMap<String, String> {
             @Override
             public Iterator<Entry<String, String>> iterator() {
                 return new Iterator<Entry<String, String>>() {
-                    final Iterator<Entry<String, String>> iter = values.entrySet().iterator();
+                    private final Iterator<Entry<String, String>> iter =
+                            values.entrySet().iterator();
+                    private Entry<String, String> currentEntry;
 
                     @Override
                     public boolean hasNext() {
@@ -219,12 +221,14 @@ public class Properties extends AbstractMap<String, String> {
 
                     @Override
                     public Entry<String, String> next() {
-                        return iter.next();
+                        return (currentEntry = iter.next());
                     }
 
                     @Override
                     public void remove() {
-                        // TODO handle remove
+                        if (currentEntry != null) {
+                            removeItem(currentEntry.getKey());
+                        }
                         iter.remove();
                     }
                 };
@@ -382,8 +386,29 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public String remove(Object key) {
-        // TODO handle remove
-        return values.remove(key);
+        String skey = key.toString();
+        removeItem(skey);
+        return values.remove(skey);
+    }
+
+    private void removeItem(String skey) {
+        setComment(skey, Collections.emptyList());
+        Cursor pos = indexOf(skey);
+        assert pos.isType(PropertiesParser.Type.KEY);
+        pos.remove();
+        assert pos.isType(PropertiesParser.Type.SEPARATOR);
+        pos.remove();
+        assert pos.isType(PropertiesParser.Type.VALUE);
+        pos.remove();
+        if (pos.isEol()) {
+            pos.remove();
+        }
+    }
+
+    @Override
+    public void clear() {
+        tokens.clear();
+        values.clear();
     }
 
     /**
