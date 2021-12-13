@@ -293,6 +293,9 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public String put(String key, String value) {
+        if (key == null || value == null) {
+            throw new NullPointerException();
+        }
         String rawValue = escape(value, false);
         if (values.containsKey(key)) {
             replaceValue(key, rawValue, value);
