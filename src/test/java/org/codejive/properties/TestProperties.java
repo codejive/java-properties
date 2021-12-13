@@ -12,7 +12,6 @@ import java.util.Iterator;
 import org.junit.jupiter.api.Test;
 
 public class TestProperties {
-
     @Test
     void testLoad() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
@@ -301,6 +300,23 @@ public class TestProperties {
             assertThat(sw.toString())
                     .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
         }
+    }
+
+    @Test
+    void testPutNull() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        assertThatThrownBy(() -> {
+            p.put("one", null);
+        }).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> {
+            p.setProperty("one", null);
+        }).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> {
+            p.put(null, "value");
+        }).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> {
+            p.setProperty(null, "value");
+        }).isInstanceOf(NullPointerException.class);
     }
 
     @Test
