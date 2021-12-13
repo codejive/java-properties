@@ -11,6 +11,14 @@ If everything seems successful the following will actual perform a deploy:
 mvn -B release:clean release:prepare release:perform
 ```
 
+_WARNING: Make sure **JAVA_HOME** is set or the release will fail!_
+
+If something went wrong you can roll back the release using:
+
+```
+mvn release:rollback
+```
+
 Use this command to set a specific version:
 
 ```
