@@ -282,9 +282,9 @@ public class Properties extends AbstractMap<String, String> {
     public String getRaw(String rawKey) {
         Cursor pos = indexOf(unescape(rawKey));
         if (pos.hasToken()) {
-            assert pos.nextIf(PropertiesParser.Type.KEY);
-            assert pos.nextIf(PropertiesParser.Type.SEPARATOR);
-            assert pos.isType(PropertiesParser.Type.VALUE);
+            validate(pos.nextIf(PropertiesParser.Type.KEY), pos);
+            validate(pos.nextIf(PropertiesParser.Type.SEPARATOR), pos);
+            validate(pos.isType(PropertiesParser.Type.VALUE), pos);
             return pos.raw();
         } else {
             return null;
@@ -343,22 +343,21 @@ public class Properties extends AbstractMap<String, String> {
 
     private void replaceValue(String key, String rawValue, String value) {
         Cursor pos = indexOf(key);
-        assert pos.nextIf(PropertiesParser.Type.KEY);
-        assert pos.nextIf(PropertiesParser.Type.SEPARATOR);
-        assert pos.isType(PropertiesParser.Type.VALUE);
+        validate(pos.nextIf(PropertiesParser.Type.KEY), pos);
+        validate(pos.nextIf(PropertiesParser.Type.SEPARATOR), pos);
+        validate(pos.isType(PropertiesParser.Type.VALUE), pos);
         pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
     // Add new tokens to the end of the list of tokens
     private Cursor addNewKeyValue(String rawKey, String key, String rawValue, String value) {
         // Track back from end until we encounter the last VALUE token (if any)
-        PropertiesParser.Token token;
         Cursor pos = last();
         while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
             pos.prev();
         }
         // Make sure we're either at the start or we've found a VALUE
-        assert pos.atStart() || pos.isType(PropertiesParser.Type.VALUE);
+        validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
         // Add a newline whitespace token if necessary
         if (pos.hasToken()) {
             pos.next();
@@ -397,11 +396,11 @@ public class Properties extends AbstractMap<String, String> {
     private void removeItem(String skey) {
         setComment(skey, Collections.emptyList());
         Cursor pos = indexOf(skey);
-        assert pos.isType(PropertiesParser.Type.KEY);
+        validate(pos.isType(PropertiesParser.Type.KEY), pos);
         pos.remove();
-        assert pos.isType(PropertiesParser.Type.SEPARATOR);
+        validate(pos.isType(PropertiesParser.Type.SEPARATOR), pos);
         pos.remove();
-        assert pos.isType(PropertiesParser.Type.VALUE);
+        validate(pos.isType(PropertiesParser.Type.VALUE), pos);
         pos.remove();
         if (pos.isEol()) {
             pos.remove();
@@ -555,7 +554,7 @@ public class Properties extends AbstractMap<String, String> {
     private List<Integer> findPropertyCommentLines(Cursor pos) {
         List<Integer> result = new ArrayList<>();
         Cursor fpos = pos.copy();
-        assert fpos.isType(PropertiesParser.Type.KEY);
+        validate(fpos.isType(PropertiesParser.Type.KEY), pos);
         fpos.prev();
         // Skip a single preceding whitespace if it is NOT an EOL token
         fpos.prevIf(PropertiesParser.Token::isWs);
@@ -795,5 +794,11 @@ public class Properties extends AbstractMap<String, String> {
 
     private Cursor last() {
         return Cursor.last(tokens);
+    }
+
+    private void validate(boolean ok, Cursor cursor) {
+        if (!ok) {
+            throw new IllegalStateException("Unexpected state detected at " + cursor);
+        }
     }
 }
