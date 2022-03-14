@@ -305,18 +305,26 @@ public class TestProperties {
     @Test
     void testPutNull() throws IOException, URISyntaxException {
         Properties p = new Properties();
-        assertThatThrownBy(() -> {
-            p.put("one", null);
-        }).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> {
-            p.setProperty("one", null);
-        }).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> {
-            p.put(null, "value");
-        }).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> {
-            p.setProperty(null, "value");
-        }).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () -> {
+                            p.put("one", null);
+                        })
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () -> {
+                            p.setProperty("one", null);
+                        })
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () -> {
+                            p.put(null, "value");
+                        })
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () -> {
+                            p.setProperty(null, "value");
+                        })
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

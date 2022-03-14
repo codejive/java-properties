@@ -168,4 +168,9 @@ public class Cursor {
     public Cursor copy() {
         return Cursor.index(tokens, index);
     }
+
+    @Override
+    public String toString() {
+        return (hasToken() ? token() + " " : "") + "@" + position();
+    }
 }
