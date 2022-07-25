@@ -21,16 +21,15 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.23.1")
 }
 
-group = "org.codejive"
-version = "0.0.5-SNAPSHOT"
-description = "Java Properties parser"
+group = "com.github.wilinz"
+
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 
-publishing {
-    publications.create<MavenPublication>("maven") {
-        from(components["java"])
-    }
-}
+//publishing {
+//    publications.create<MavenPublication>("maven") {
+//        from(components["java"])
+//    }
+//}
 
 tasks.test {
     useJUnitPlatform()
