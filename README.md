@@ -1,6 +1,6 @@
 # Java Properties
 
-[![](https://jitpack.io/v/wilinz/java-properties?label=Release)](https://jitpack.io/#wilinz/java-properties)
+[![Release](https://jitpack.io/v/wilinz/java-properties.svg)](https://jitpack.io/#wilinz/java-properties)
 
 Java Properties is a drop-in replacement of the ubiquitous
 [`java.util.Properties`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Properties.html)
@@ -30,23 +30,34 @@ passwordHash=SHA512
 Add it to your build file with:
 
 ```xml
-<dependency>
-    <groupId>org.codejive</groupId>
-    <artifactId>java-properties</artifactId>
-    <version>0.0.2</version>
-</dependency>
+	<repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 ```
-
-or
-
-```groovy
-implementation 'org.codejive:java-properties:0.0.2'
+```xml
+	<dependency>
+	    <groupId>com.github.wilinz</groupId>
+	    <artifactId>java-properties</artifactId>
+	    <version>1.0.0</version>
+	</dependency>
 ```
-
 or
 
 ```kotlin
-implementation("org.codejive:java-properties:0.0.2")
+	allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+```kotlin
+	dependencies {
+	        implementation("com.github.wilinz:java-properties:1.0.0")
+	}
 ```
 
 And add this import to your code:
