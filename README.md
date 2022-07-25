@@ -1,5 +1,7 @@
 # Java Properties
 
+[![](https://jitpack.io/v/jitpack/gradle-simple.svg?label=Release)](https://jitpack.io/#jitpack/gradle-simple)
+
 Java Properties is a drop-in replacement of the ubiquitous
 [`java.util.Properties`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Properties.html)
 that everybody knows and loves (hates?).
