@@ -25,11 +25,11 @@ group = "com.github.wilinz"
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 
-//publishing {
-//    publications.create<MavenPublication>("maven") {
-//        from(components["java"])
-//    }
-//}
+publishing {
+    publications.create<MavenPublication>("maven") {
+        from(components["java"])
+    }
+}
 
 tasks.test {
     useJUnitPlatform()
