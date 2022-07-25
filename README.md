@@ -41,6 +41,12 @@ or
 implementation 'org.codejive:java-properties:0.0.2'
 ```
 
+or
+
+```kotlin
+implementation("org.codejive:java-properties:0.0.2")
+```
+
 And add this import to your code:
 
 ```java
@@ -143,11 +149,3 @@ a couple of differences:
  - the class does **not** extend `Hashtable`, it's a completely outdated class that shouldn't be used anymore
  - the `store()` methods do **not** write a timestamp at the top of the output
  - the `store()` methods **will** write an empty line between any comments at the top of the output and the actual data
-
-### Development
-
-To build the project simply run:
-
-```shell
-./mvnw spotless:apply clean install
-```
