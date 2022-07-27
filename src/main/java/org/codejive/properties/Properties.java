@@ -3,6 +3,7 @@ package org.codejive.properties;
 import static org.codejive.properties.PropertiesParser.unescape;
 
 import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -772,7 +773,7 @@ public class Properties extends AbstractMap<String, String> {
         return props;
     }
 
-    public String asString(boolean isEncodeUnicode,String... comment) throws IOException {
+    public String asString(boolean isEncodeUnicode, String... comment) throws IOException {
         try (StringWriter writer = new StringWriter()) {
             store(writer, isEncodeUnicode, comment);
             return writer.toString();
@@ -833,26 +834,7 @@ public class Properties extends AbstractMap<String, String> {
      * @throws IOException Thrown when any IO error occurs during operation
      */
     public void store(Writer writer, String... comment) throws IOException {
-        Cursor pos = first();
-        if (comment.length > 0) {
-            pos = skipHeaderCommentLines();
-            List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
-            for (String c : newcs) {
-                writer.write(encodeUnicode(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw()));
-                writer.flush();
-                writer.write(encodeUnicode(PropertiesParser.Token.EOL.getRaw()));
-                writer.flush();
-            }
-            // We write an extra empty line so this comment won't be taken as part of the first
-            // property
-            writer.write(encodeUnicode(PropertiesParser.Token.EOL.getRaw()));
-            writer.flush();
-        }
-        while (pos.hasToken()) {
-            writer.write(encodeUnicode(pos.raw()));
-            writer.flush();
-            pos.next();
-        }
+        store(writer, true, comment);
     }
 
     /**
@@ -892,7 +874,8 @@ public class Properties extends AbstractMap<String, String> {
      * @throws IOException Thrown when any IO error occurs during operation
      */
     public void store(OutputStream out, boolean isEncodeUnicode, String... comment) throws IOException {
-        store(new OutputStreamWriter(out, StandardCharsets.UTF_8), isEncodeUnicode, comment);
+        Charset charset = isEncodeUnicode ? StandardCharsets.ISO_8859_1 : StandardCharsets.UTF_8;
+        store(new OutputStreamWriter(out, charset), isEncodeUnicode, comment);
     }
 
     /**
