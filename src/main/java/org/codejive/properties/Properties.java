@@ -3,10 +3,10 @@ package org.codejive.properties;
 import static org.codejive.properties.PropertiesParser.unescape;
 
 import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -27,7 +27,7 @@ public class Properties extends AbstractMap<String, String> {
     private final Properties defaults;
 
     public Properties() {
-        this((Properties) null);
+        this(null);
     }
 
     public Properties(Properties defaults) {
@@ -53,10 +53,10 @@ public class Properties extends AbstractMap<String, String> {
      * found in this property list, the default property list, and its defaults, recursively, are
      * then checked. The method returns the default value argument if the property is not found.
      *
-     * @param key the key to look up.
+     * @param key          the key to look up.
      * @param defaultValue the value to return if no mapping was found for the key.
      * @return the value in this property list with the specified key value or the value of <code>
-     *     defaultValue</code>.
+     * defaultValue</code>.
      */
     public String getProperty(String key, String defaultValue) {
         if (containsKey(key)) {
@@ -92,8 +92,8 @@ public class Properties extends AbstractMap<String, String> {
      * properties previously contained a mapping for the key, the old value is replaced. If any
      * comment lines are supplied they will be prepended to the property.
      *
-     * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
+     * @param key     key with which the specified value is to be associated
+     * @param value   value to be associated with the specified key
      * @param comment comment lines to be associated with the specified key
      * @return the previous value associated with key, or null if there was no mapping for key
      */
@@ -107,7 +107,7 @@ public class Properties extends AbstractMap<String, String> {
      * name has not already been found from the main properties table.
      *
      * @return an enumeration of keys in this property list where the key and its corresponding
-     *     value are strings, including the keys in the default property list.
+     * value are strings, including the keys in the default property list.
      */
     public Enumeration<String> propertyNames() {
         return Collections.enumeration(stringPropertyNames());
@@ -119,7 +119,7 @@ public class Properties extends AbstractMap<String, String> {
      * key of the same name has not already been found from the main properties table.
      *
      * @return an unmodifiable set of keys in this property list where the key and its corresponding
-     *     value are strings, including the keys in the default property list.
+     * value are strings, including the keys in the default property list.
      */
     public Set<String> stringPropertyNames() {
         return Collections.unmodifiableSet(flatten().keySet());
@@ -152,6 +152,32 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
+     * Prints this property list out to the specified output stream.
+     *
+     * @param out a <code>PrintStream</code> object
+     */
+    public void list(PrintStream out, boolean isEncodeUnicode) {
+        try {
+            flatten().store(out, isEncodeUnicode);
+        } catch (IOException e) {
+            // Ignore any errors
+        }
+    }
+
+    /**
+     * Prints this property list out to the specified writer.
+     *
+     * @param out a <code>PrintWriter</code> object
+     */
+    public void list(PrintWriter out, boolean isEncodeUnicode) {
+        try {
+            flatten().store(out, isEncodeUnicode);
+        } catch (IOException e) {
+            // Ignore any errors
+        }
+    }
+
+    /**
      * Loads all the properties represented by the XML document on the specified input stream into
      * this properties table. NB: comments are not supported by this format.
      *
@@ -167,7 +193,7 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * Emits an XML document representing all the properties contained in this table.
      *
-     * @param os the output stream on which to emit the XML document.
+     * @param os      the output stream on which to emit the XML document.
      * @param comment a description of the property list, or null if no comment is desired.
      */
     public void storeToXML(OutputStream os, String comment) throws IOException {
@@ -177,8 +203,8 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * Emits an XML document representing all the properties contained in this table.
      *
-     * @param os the output stream on which to emit the XML document.
-     * @param comment a description of the property list, or null if no comment is desired.
+     * @param os       the output stream on which to emit the XML document.
+     * @param comment  a description of the property list, or null if no comment is desired.
      * @param encoding the name of a supported character encoding
      */
     public void storeToXML(OutputStream os, String comment, String encoding) throws IOException {
@@ -311,8 +337,8 @@ public class Properties extends AbstractMap<String, String> {
      * properties previously contained a mapping for the key, the old value is replaced. If any
      * comment lines are supplied they will be prepended to the property.
      *
-     * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
+     * @param key     key with which the specified value is to be associated
+     * @param value   value to be associated with the specified key
      * @param comment comment lines to be associated with the specified key
      * @return the previous value associated with key, or null if there was no mapping for key
      */
@@ -326,7 +352,7 @@ public class Properties extends AbstractMap<String, String> {
      * Works like <code>put()</code> but uses raw values for keys and values. This means these keys
      * and values will not be escaped before being stored.
      *
-     * @param rawKey key with which the specified value is to be associated
+     * @param rawKey   key with which the specified value is to be associated
      * @param rawValue value to be associated with the specified key
      * @return the previous value associated with key, or null if there was no mapping for key.
      */
@@ -373,7 +399,7 @@ public class Properties extends AbstractMap<String, String> {
             pos = skipHeaderCommentLines();
             if (pos.position() > 0) {
                 // We have to make sure there are at least 2 EOLs after the last comment
-                int eols = pos.prevCount(t -> t.isEol());
+                int eols = pos.prevCount(PropertiesParser.Token::isEol);
                 for (int i = 0; i < 2 - eols; i++) {
                     pos.addEol();
                 }
@@ -421,7 +447,7 @@ public class Properties extends AbstractMap<String, String> {
      *
      * @param key The key to look for
      * @return A list of comment strings or an empty list if no comments lines were found or the key
-     *     doesn't exist.
+     * doesn't exist.
      */
     public List<String> getComment(String key) {
         return getComment(findPropertyCommentLines(key));
@@ -441,7 +467,7 @@ public class Properties extends AbstractMap<String, String> {
      * at any existing comments, or at symbols found on previous items and as a last result will use
      * <code># </code>).
      *
-     * @param key The key to look for
+     * @param key      The key to look for
      * @param comments The comments to add to the item
      * @return The previous list of comments, if any
      * @throws NoSuchElementException Thrown when they key couldn't be found
@@ -457,7 +483,7 @@ public class Properties extends AbstractMap<String, String> {
      * will look at any existing comments, or at symbols found on previous items and as a last
      * result will use <code># </code>).
      *
-     * @param key The key to look for
+     * @param key      The key to look for
      * @param comments The list of comments to add to the item
      * @return The previous list of comments, if any
      * @throws NoSuchElementException Thrown when they key couldn't be found
@@ -510,7 +536,7 @@ public class Properties extends AbstractMap<String, String> {
      * that were used on previous lines, if not the default will be the value passed as
      * `preferredPrefix`.
      *
-     * @param comments list of comment lines
+     * @param comments        list of comment lines
      * @param preferredPrefix the preferred prefix to use
      * @return list of comment lines
      */
@@ -586,12 +612,24 @@ public class Properties extends AbstractMap<String, String> {
         if (forKey) {
             raw = raw.replace(" ", "\\ ");
         }
-        raw =
-                replace(
-                        raw,
-                        "[^\\x{0000}-\\x{00FF}]",
-                        m -> "\\\\u" + Integer.toString(m.group(0).charAt(0), 16));
         return raw;
+    }
+
+    private String encodeUnicode(String raw) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c > 0x7F) {
+                String hex = Integer.toHexString(c);
+                if (hex.length() < 4) {
+                    hex = String.format("%4s", hex).replace(" ", "0");
+                }
+                builder.append("\\u").append(hex);
+            } else {
+                builder.append(c);
+            }
+        }
+        return builder.toString();
     }
 
     private static String replace(String input, String regex, Function<Matcher, String> callback) {
@@ -631,6 +669,19 @@ public class Properties extends AbstractMap<String, String> {
      */
     public void load(Path file) throws IOException {
         try (Reader br = Files.newBufferedReader(file)) {
+            load(br);
+        }
+    }
+
+    /**
+     * Loads the contents from the given file and stores it in this object. This includes not only
+     * properties but also all whitespace and any comments that are encountered.
+     *
+     * @param file the file to load
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
+    public void load(File file) throws IOException {
+        try (Reader br = Files.newBufferedReader(file.toPath())) {
             load(br);
         }
     }
@@ -690,6 +741,19 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
+     * Returns a <code>Properties</code> with the contents read from the given file. This includes
+     * not only properties but also all whitespace and any comments that are encountered.
+     *
+     * @param file a path to the file to load
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
+    public static Properties loadProperties(File file) throws IOException {
+        Properties props = new Properties();
+        props.load(file);
+        return props;
+    }
+
+    /**
      * Returns a <code>Properties</code> with the contents read from the given stream. This includes
      * not only properties but also all whitespace and any comments that are encountered.
      *
@@ -713,23 +777,52 @@ public class Properties extends AbstractMap<String, String> {
         return props;
     }
 
-    /**
-     * Stores the contents of this object to the given file.
-     *
-     * @param file a path to the file to write
-     * @param comment comment lines to be written at the start of the output
-     * @throws IOException Thrown when any IO error occurs during operation
-     */
-    public void store(Path file, String... comment) throws IOException {
-        try (Writer bw = Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING)) {
-            store(bw, comment);
+    public String asString(boolean isEncodeUnicode, String... comment) throws IOException {
+        try (StringWriter writer = new StringWriter()) {
+            store(writer, isEncodeUnicode, comment);
+            return writer.toString();
+        }
+    }
+
+    @Override
+    public String toString() {
+        try {
+            return asString(false);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
     /**
      * Stores the contents of this object to the given file.
      *
-     * @param out an <code>OutputStream</code> object
+     * @param file    a path to the file to write
+     * @param comment comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(Path file, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file)) {
+            store(out, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file    the file to write
+     * @param comment comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(File file, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            store(out, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param out     an <code>OutputStream</code> object
      * @param comment comment lines to be written at the start of the output
      * @throws IOException Thrown when any IO error occurs during operation
      */
@@ -740,25 +833,96 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * Stores the contents of this object to the given file.
      *
-     * @param writer a <code>Writer</code> object
+     * @param writer  a <code>Writer</code> object
      * @param comment comment lines to be written at the start of the output
      * @throws IOException Thrown when any IO error occurs during operation
      */
     public void store(Writer writer, String... comment) throws IOException {
+        store(writer, true, comment);
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file            a path to the file to write
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(Path file, boolean isEncodeUnicode, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file)) {
+            store(out, isEncodeUnicode, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file            the file to write
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(File file, boolean isEncodeUnicode, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            store(out, isEncodeUnicode, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param out             an <code>OutputStream</code> object
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(OutputStream out, boolean isEncodeUnicode, String... comment) throws IOException {
+        Charset charset = isEncodeUnicode ? StandardCharsets.ISO_8859_1 : StandardCharsets.UTF_8;
+        store(new OutputStreamWriter(out, charset), isEncodeUnicode, comment);
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param writer          a <code>Writer</code> object
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(Writer writer, boolean isEncodeUnicode, String... comment) throws IOException {
         Cursor pos = first();
         if (comment.length > 0) {
             pos = skipHeaderCommentLines();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
-                writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
-                writer.write(PropertiesParser.Token.EOL.getRaw());
+                String commentText = new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw();
+                String property = PropertiesParser.Token.EOL.getRaw();
+                if (isEncodeUnicode) {
+                    commentText = encodeUnicode(commentText);
+                    property = encodeUnicode(property);
+                }
+                writer.write(commentText);
+                writer.flush();
+                writer.write(property);
+                writer.flush();
             }
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
-            writer.write(PropertiesParser.Token.EOL.getRaw());
+            String property = PropertiesParser.Token.EOL.getRaw();
+            if (isEncodeUnicode) {
+                property = encodeUnicode(property);
+            }
+            writer.write(property);
+            writer.flush();
         }
         while (pos.hasToken()) {
-            writer.write(pos.raw());
+            if (isEncodeUnicode) {
+                writer.write(encodeUnicode(pos.raw()));
+            } else {
+                writer.write(pos.raw());
+            }
+            writer.flush();
             pos.next();
         }
     }

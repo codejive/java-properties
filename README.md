@@ -1,5 +1,7 @@
 # Java Properties
 
+[![Release](https://jitpack.io/v/wilinz/java-properties.svg)](https://jitpack.io/#wilinz/java-properties)
+
 Java Properties is a drop-in replacement of the ubiquitous
 [`java.util.Properties`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Properties.html)
 that everybody knows and loves (hates?).
@@ -28,17 +30,34 @@ passwordHash=SHA512
 Add it to your build file with:
 
 ```xml
-<dependency>
-    <groupId>org.codejive</groupId>
-    <artifactId>java-properties</artifactId>
-    <version>0.0.2</version>
-</dependency>
+	<repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 ```
-
+```xml
+	<dependency>
+	    <groupId>com.github.wilinz</groupId>
+	    <artifactId>java-properties</artifactId>
+	    <version>1.0.0</version>
+	</dependency>
+```
 or
 
-```groovy
-implementation 'org.codejive:java-properties:0.0.2'
+```kotlin
+	allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+```kotlin
+	dependencies {
+	        implementation("com.github.wilinz:java-properties:1.0.0")
+	}
 ```
 
 And add this import to your code:
@@ -143,11 +162,3 @@ a couple of differences:
  - the class does **not** extend `Hashtable`, it's a completely outdated class that shouldn't be used anymore
  - the `store()` methods do **not** write a timestamp at the top of the output
  - the `store()` methods **will** write an empty line between any comments at the top of the output and the actual data
-
-### Development
-
-To build the project simply run:
-
-```shell
-./mvnw spotless:apply clean install
-```
