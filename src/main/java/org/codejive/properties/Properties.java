@@ -26,7 +26,7 @@ public class Properties extends AbstractMap<String, String> {
     private final Properties defaults;
 
     public Properties() {
-        this((Properties) null);
+        this(null);
     }
 
     public Properties(Properties defaults) {
@@ -145,6 +145,32 @@ public class Properties extends AbstractMap<String, String> {
     public void list(PrintWriter out) {
         try {
             flatten().store(out);
+        } catch (IOException e) {
+            // Ignore any errors
+        }
+    }
+
+    /**
+     * Prints this property list out to the specified output stream.
+     *
+     * @param out a <code>PrintStream</code> object
+     */
+    public void list(PrintStream out, boolean isEncodeUnicode) {
+        try {
+            flatten().store(out, isEncodeUnicode);
+        } catch (IOException e) {
+            // Ignore any errors
+        }
+    }
+
+    /**
+     * Prints this property list out to the specified writer.
+     *
+     * @param out a <code>PrintWriter</code> object
+     */
+    public void list(PrintWriter out, boolean isEncodeUnicode) {
+        try {
+            flatten().store(out, isEncodeUnicode);
         } catch (IOException e) {
             // Ignore any errors
         }
@@ -372,7 +398,7 @@ public class Properties extends AbstractMap<String, String> {
             pos = skipHeaderCommentLines();
             if (pos.position() > 0) {
                 // We have to make sure there are at least 2 EOLs after the last comment
-                int eols = pos.prevCount(t -> t.isEol());
+                int eols = pos.prevCount(PropertiesParser.Token::isEol);
                 for (int i = 0; i < 2 - eols; i++) {
                     pos.addEol();
                 }
@@ -585,12 +611,20 @@ public class Properties extends AbstractMap<String, String> {
         if (forKey) {
             raw = raw.replace(" ", "\\ ");
         }
-        raw =
-                replace(
-                        raw,
-                        "[^\\x{0000}-\\x{00FF}]",
-                        m -> "\\\\u" + Integer.toString(m.group(0).charAt(0), 16));
         return raw;
+    }
+
+    private String encodeUnicode(String raw) {
+        return replace(
+                raw,
+                "[^\\x{0000}-\\x{00FF}]",
+                m -> {
+                    String hex = Integer.toHexString(m.group(0).charAt(0));
+                    if (hex.length() < 4) {
+                        hex = String.format("%4s", hex).replace(" ", "0");
+                    }
+                    return "\\\\u" + hex;
+                });
     }
 
     private static String replace(String input, String regex, Function<Matcher, String> callback) {
@@ -738,9 +772,9 @@ public class Properties extends AbstractMap<String, String> {
         return props;
     }
 
-    public String asString(String... comment) throws IOException {
+    public String asString(boolean isEncodeUnicode,String... comment) throws IOException {
         try (StringWriter writer = new StringWriter()) {
-            store(writer, comment);
+            store(writer, isEncodeUnicode, comment);
             return writer.toString();
         }
     }
@@ -748,7 +782,7 @@ public class Properties extends AbstractMap<String, String> {
     @Override
     public String toString() {
         try {
-            return asString();
+            return asString(false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -804,18 +838,103 @@ public class Properties extends AbstractMap<String, String> {
             pos = skipHeaderCommentLines();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
-                writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
+                writer.write(encodeUnicode(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw()));
                 writer.flush();
-                writer.write(PropertiesParser.Token.EOL.getRaw());
+                writer.write(encodeUnicode(PropertiesParser.Token.EOL.getRaw()));
                 writer.flush();
             }
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
-            writer.write(PropertiesParser.Token.EOL.getRaw());
+            writer.write(encodeUnicode(PropertiesParser.Token.EOL.getRaw()));
             writer.flush();
         }
         while (pos.hasToken()) {
-            writer.write(pos.raw());
+            writer.write(encodeUnicode(pos.raw()));
+            writer.flush();
+            pos.next();
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file            a path to the file to write
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(Path file, boolean isEncodeUnicode, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file)) {
+            store(out, isEncodeUnicode, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param file            the file to write
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(File file, boolean isEncodeUnicode, String... comment) throws IOException {
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            store(out, isEncodeUnicode, comment);
+        }
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param out             an <code>OutputStream</code> object
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(OutputStream out, boolean isEncodeUnicode, String... comment) throws IOException {
+        store(new OutputStreamWriter(out, StandardCharsets.UTF_8), isEncodeUnicode, comment);
+    }
+
+    /**
+     * Stores the contents of this object to the given file.
+     *
+     * @param writer          a <code>Writer</code> object
+     * @param isEncodeUnicode Whether to use unicode encoding for non ISO 8859-1 characters
+     * @param comment         comment lines to be written at the start of the output
+     * @throws IOException Thrown when any IO error occurs during operation
+     */
+    public void store(Writer writer, boolean isEncodeUnicode, String... comment) throws IOException {
+        Cursor pos = first();
+        if (comment.length > 0) {
+            pos = skipHeaderCommentLines();
+            List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
+            for (String c : newcs) {
+                String commentText = new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw();
+                String property = PropertiesParser.Token.EOL.getRaw();
+                if (isEncodeUnicode) {
+                    commentText = encodeUnicode(commentText);
+                    property = encodeUnicode(property);
+                }
+                writer.write(commentText);
+                writer.flush();
+                writer.write(property);
+                writer.flush();
+            }
+            // We write an extra empty line so this comment won't be taken as part of the first
+            // property
+            String property = PropertiesParser.Token.EOL.getRaw();
+            if (isEncodeUnicode) {
+                property = encodeUnicode(property);
+            }
+            writer.write(property);
+            writer.flush();
+        }
+        while (pos.hasToken()) {
+            if (isEncodeUnicode) {
+                writer.write(encodeUnicode(pos.raw()));
+            } else {
+                writer.write(pos.raw());
+            }
             writer.flush();
             pos.next();
         }
