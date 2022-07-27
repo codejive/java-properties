@@ -616,16 +616,20 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private String encodeUnicode(String raw) {
-        return replace(
-                raw,
-                "[^\\x{0000}-\\x{00FF}]",
-                m -> {
-                    String hex = Integer.toHexString(m.group(0).charAt(0));
-                    if (hex.length() < 4) {
-                        hex = String.format("%4s", hex).replace(" ", "0");
-                    }
-                    return "\\\\u" + hex;
-                });
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c > 0xFF) {
+                String hex = Integer.toHexString(c);
+                if (hex.length() < 4) {
+                    hex = String.format("%4s", hex).replace(" ", "0");
+                }
+                builder.append("\\\\u").append(hex);
+            } else {
+                builder.append(c);
+            }
+        }
+        return builder.toString();
     }
 
     private static String replace(String input, String regex, Function<Matcher, String> callback) {
