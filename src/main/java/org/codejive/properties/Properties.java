@@ -619,12 +619,12 @@ public class Properties extends AbstractMap<String, String> {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < raw.length(); i++) {
             char c = raw.charAt(i);
-            if (c > 0xFF) {
+            if (c > 0x7F) {
                 String hex = Integer.toHexString(c);
                 if (hex.length() < 4) {
                     hex = String.format("%4s", hex).replace(" ", "0");
                 }
-                builder.append("\\\\u").append(hex);
+                builder.append("\\u").append(hex);
             } else {
                 builder.append(c);
             }
