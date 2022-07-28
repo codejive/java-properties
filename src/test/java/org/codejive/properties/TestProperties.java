@@ -30,7 +30,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one two  three",
-                        "\u1234");
+                        "\u1234\u1234");
         assertThat(p.rawValues())
                 .containsExactly(
                         "simple",
@@ -39,7 +39,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one \\\n    two  \\\n\tthree",
-                        "\\u1234");
+                        "\\u1234\u1234");
     }
 
     @Test
@@ -69,7 +69,7 @@ public class TestProperties {
         assertThat(p.get(" with spaces")).isEqualTo("everywhere  ");
         assertThat(p.get("altsep")).isEqualTo("value");
         assertThat(p.get("multiline")).isEqualTo("one two  three");
-        assertThat(p.get("key.4")).isEqualTo("\u1234");
+        assertThat(p.get("key.4")).isEqualTo("\u1234\u1234");
     }
 
     @Test
@@ -102,7 +102,7 @@ public class TestProperties {
         assertThat(p.getProperty(" with spaces")).isEqualTo("everywhere  ");
         assertThat(p.getProperty("altsep")).isEqualTo("");
         assertThat(p.getProperty("multiline")).isEqualTo("one two  three");
-        assertThat(p.getProperty("key.4")).isEqualTo("\u1234");
+        assertThat(p.getProperty("key.4")).isEqualTo("\u1234\u1234");
         assertThat(p.getProperty("five")).isEqualTo("5");
         assertThat(p.getPropertyComment("five")).containsExactly("# a new comment");
         StringWriter sw = new StringWriter();
@@ -119,7 +119,7 @@ public class TestProperties {
         assertThat(p.getRaw(" with spaces")).isEqualTo("everywhere  ");
         assertThat(p.getRaw("altsep")).isEqualTo("value");
         assertThat(p.getRaw("multiline")).isEqualTo("one \\\n    two  \\\n\tthree");
-        assertThat(p.getRaw("key.4")).isEqualTo("\\u1234");
+        assertThat(p.getRaw("key.4")).isEqualTo("\\u1234\u1234");
     }
 
     @Test
@@ -154,7 +154,7 @@ public class TestProperties {
         p.put(" with spaces", "everywhere  ");
         p.put("altsep", "value");
         p.put("multiline", "one two  three");
-        p.put("key.4", "\u1234");
+        p.put("key.4", "\u1234\u1234");
         assertThat(p).size().isEqualTo(7);
         assertThat(p.keySet())
                 .containsExactly(
@@ -170,7 +170,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one two  three",
-                        "\u1234");
+                        "\u1234\u1234");
         assertThat(p.rawValues())
                 .containsExactly(
                         "simple",
@@ -179,7 +179,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one two  three",
-                        "\\u1234");
+                        "\u1234\u1234");
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-put.properties")));
@@ -195,7 +195,7 @@ public class TestProperties {
         p.setProperty(" with spaces", "everywhere  ");
         p.setProperty("altsep", "value");
         p.setProperty("multiline", "one two  three");
-        p.setProperty("key.4", "\u1234");
+        p.setProperty("key.4", "\u1234\u1234");
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-setproperty.properties")));
@@ -210,7 +210,7 @@ public class TestProperties {
         p.putRaw("\\ with\\ spaces", "everywhere  ");
         p.putRaw("altsep", "value");
         p.putRaw("multiline", "one \\\n    two  \\\n\tthree");
-        p.putRaw("key.4", "\\u1234");
+        p.putRaw("key.4", "\\u1234\u1234");
         assertThat(p).size().isEqualTo(7);
         assertThat(p.keySet())
                 .containsExactly(
@@ -226,7 +226,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one two  three",
-                        "\u1234");
+                        "\u1234\u1234");
         assertThat(p.rawValues())
                 .containsExactly(
                         "simple",
@@ -235,7 +235,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one \\\n    two  \\\n\tthree",
-                        "\\u1234");
+                        "\\u1234\u1234");
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-putraw.properties")));
@@ -330,7 +330,8 @@ public class TestProperties {
     @Test
     void testPutUnicode() throws IOException, URISyntaxException {
         Properties p = new Properties();
-        p.put("test", "الألبانية");
+        p.putRaw("encoded", "\\u0627\\u0644\\u0623\\u0644\\u0628\\u0627\\u0646\\u064a\\u0629");
+        p.put("text", "\u0627\u0644\u0623\u0644\u0628\u0627\u0646\u064a\u0629");
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString())
@@ -431,7 +432,7 @@ public class TestProperties {
                         "everywhere  ",
                         "value",
                         "one two  three",
-                        "\u1234");
+                        "\u1234\u1234");
     }
 
     @Test
@@ -445,7 +446,7 @@ public class TestProperties {
         assertThat(sw.toString()).contains("\\ with\\ spaces=everywhere  \n");
         assertThat(sw.toString()).contains("altsep=value\n");
         assertThat(sw.toString()).contains("multiline=one two  three\n");
-        assertThat(sw.toString()).contains("key.4=\u1234\n");
+        assertThat(sw.toString()).contains("key.4=\u1234\u1234\n");
     }
 
     @Test

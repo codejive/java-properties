@@ -579,6 +579,7 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private String escape(String raw, boolean forKey) {
+        raw = raw.replace("\\", "\\\\");
         raw = raw.replace("\n", "\\n");
         raw = raw.replace("\r", "\\r");
         raw = raw.replace("\t", "\\t");
@@ -586,11 +587,6 @@ public class Properties extends AbstractMap<String, String> {
         if (forKey) {
             raw = raw.replace(" ", "\\ ");
         }
-        raw =
-                replace(
-                        raw,
-                        "[^\\x{0000}-\\x{00FF}]",
-                        m -> "\\\\u" + String.format("%04x", (int)m.group(0).charAt(0)));
         return raw;
     }
 
