@@ -21,7 +21,9 @@ class PropertiesParser {
     public enum Type {
         /** The key part of a key-value pair */
         KEY,
-        /** The separator between a key and a value */
+        /** The separator between a key and a value. This will include any whitespace that exists
+         * before and after the separator!
+         */
         SEPARATOR,
         /** The value part of a key-value pair */
         VALUE,
@@ -293,6 +295,13 @@ class PropertiesParser {
         return result;
     }
 
+    /**
+     * Returns a copy of the given string where all escape sequences
+     * have been turned into their representative values.
+     *
+     * @param escape Input string
+     * @return Decoded string
+     */
     static String unescape(String escape) {
         StringBuilder txt = new StringBuilder();
         for (int i = 0; i < escape.length(); i++) {

@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Iterator;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,24 @@ public class TestProperties {
                         "value",
                         "one \\\n    two  \\\n\tthree",
                         "\\u1234\u1234");
+        assertThat(p.entrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\n\t\r\f"),
+                        new AbstractMap.SimpleEntry<>(" with spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one two  three"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\u1234\u1234"));
+        assertThat(p.rawEntrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\\n\\t\\r\\f"),
+                        new AbstractMap.SimpleEntry<>("\\ with\\ spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one \\\n    two  \\\n\tthree"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
     }
 
     @Test
@@ -180,6 +199,24 @@ public class TestProperties {
                         "value",
                         "one two  three",
                         "\u1234\u1234");
+        assertThat(p.entrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\n\t\r\f"),
+                        new AbstractMap.SimpleEntry<>(" with spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one two  three"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\u1234\u1234"));
+        assertThat(p.rawEntrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\\n\\t\\r\\f"),
+                        new AbstractMap.SimpleEntry<>("\\ with\\ spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one two  three"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\u1234\u1234"));
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-put.properties")));
@@ -236,6 +273,24 @@ public class TestProperties {
                         "value",
                         "one \\\n    two  \\\n\tthree",
                         "\\u1234\u1234");
+        assertThat(p.entrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\n\t\r\f"),
+                        new AbstractMap.SimpleEntry<>(" with spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one two  three"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\u1234\u1234"));
+        assertThat(p.rawEntrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\\n\\t\\r\\f"),
+                        new AbstractMap.SimpleEntry<>("\\ with\\ spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one \\\n    two  \\\n\tthree"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-putraw.properties")));
@@ -483,6 +538,22 @@ public class TestProperties {
                         "value",
                         "one two  three",
                         "\u1234");
+    }
+
+    @Test
+    void testEscaped() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        StringWriter sw = new StringWriter();
+        p.escaped().store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-escaped.properties")));
+    }
+
+    @Test
+    void testUnescaped() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        StringWriter sw = new StringWriter();
+        p.unescaped().store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-unescaped.properties")));
     }
 
     private Path getResource(String name) throws URISyntaxException {
