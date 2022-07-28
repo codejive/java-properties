@@ -590,7 +590,7 @@ public class Properties extends AbstractMap<String, String> {
                 replace(
                         raw,
                         "[^\\x{0000}-\\x{00FF}]",
-                        m -> "\\\\u" + Integer.toString(m.group(0).charAt(0), 16));
+                        m -> "\\\\u" + String.format("%04x", (int)m.group(0).charAt(0)));
         return raw;
     }
 

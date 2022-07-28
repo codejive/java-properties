@@ -328,6 +328,16 @@ public class TestProperties {
     }
 
     @Test
+    void testPutUnicode() throws IOException, URISyntaxException {
+        Properties p = new Properties();
+        p.put("test", "الألبانية");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString())
+                .isEqualTo(readAll(getResource("/test-putunicode.properties")));
+    }
+
+    @Test
     void testRemoveFirst() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         p.remove("one");
