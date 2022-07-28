@@ -698,6 +698,18 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
+     * Loads the contents from the input and stores it in this object. This includes not only
+     * properties but also all whitespace and any comments that are encountered.
+     *
+     * @param in an <code>InputStream</code> object
+     * @param charset Specifies the encoding of the read stream
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
+    public void load(InputStream in, Charset charset) throws IOException {
+        load(new InputStreamReader(in, charset));
+    }
+
+    /**
      * Loads the contents from the reader and stores it in this object. This includes not only
      * properties but also all whitespace and any comments that are encountered.
      *
@@ -762,6 +774,18 @@ public class Properties extends AbstractMap<String, String> {
      */
     public static Properties loadProperties(InputStream in) throws IOException {
         return loadProperties(new InputStreamReader(in, StandardCharsets.ISO_8859_1));
+    }
+
+    /**
+     * Returns a <code>Properties</code> with the contents read from the given stream. This includes
+     * not only properties but also all whitespace and any comments that are encountered.
+     *
+     * @param in an <code>InputStream</code> object
+     * @param charset Specifies the encoding of the read stream
+     * @throws IOException Thrown when any IO error occurs during loading
+     */
+    public static Properties loadProperties(InputStream in, Charset charset) throws IOException {
+        return loadProperties(new InputStreamReader(in, charset));
     }
 
     /**
