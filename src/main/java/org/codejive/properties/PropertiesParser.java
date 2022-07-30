@@ -21,7 +21,8 @@ class PropertiesParser {
     public enum Type {
         /** The key part of a key-value pair */
         KEY,
-        /** The separator between a key and a value. This will include any whitespace that exists
+        /**
+         * The separator between a key and a value. This will include any whitespace that exists
          * before and after the separator!
          */
         SEPARATOR,
@@ -296,8 +297,8 @@ class PropertiesParser {
     }
 
     /**
-     * Returns a copy of the given string where all escape sequences
-     * have been turned into their representative values.
+     * Returns a copy of the given string where all escape sequences have been turned into their
+     * representative values.
      *
      * @param escape Input string
      * @return Decoded string

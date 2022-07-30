@@ -389,8 +389,7 @@ public class TestProperties {
         p.put("text", "\u0627\u0644\u0623\u0644\u0628\u0627\u0646\u064a\u0629");
         StringWriter sw = new StringWriter();
         p.store(sw);
-        assertThat(sw.toString())
-                .isEqualTo(readAll(getResource("/test-putunicode.properties")));
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-putunicode.properties")));
     }
 
     @Test

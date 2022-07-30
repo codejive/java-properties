@@ -12,7 +12,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -42,9 +41,11 @@ public class Properties extends AbstractMap<String, String> {
         this.defaults = defaults;
         values = new LinkedHashMap<>();
         this.tokens = tokens;
-        rawEntrySet().forEach(e -> {
-            values.put(unescape(e.getKey()), unescape(e.getValue()));
-        });
+        rawEntrySet()
+                .forEach(
+                        e -> {
+                            values.put(unescape(e.getKey()), unescape(e.getValue()));
+                        });
     }
 
     /**
@@ -197,8 +198,8 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns the current properties table with all its defaults as a single
-     * flattened properties table. NB: Result will have no formatting or comments!
+     * Returns the current properties table with all its defaults as a single flattened properties
+     * table. NB: Result will have no formatting or comments!
      *
      * @return a <code>Properties</code> object
      * @deprecated Use <code>flattened()</code>
@@ -209,8 +210,8 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns the current properties table with all its defaults as a single
-     * flattened properties table. NB: Result will have no formatting or comments!
+     * Returns the current properties table with all its defaults as a single flattened properties
+     * table. NB: Result will have no formatting or comments!
      *
      * @return a <code>Properties</code> object
      */
@@ -615,8 +616,7 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private static String escapeValue(String value) {
-        return value
-                .replace("\\", "\\\\")
+        return value.replace("\\", "\\\\")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
@@ -631,7 +631,7 @@ public class Properties extends AbstractMap<String, String> {
         return replace(
                 text,
                 "[^\\x{0000}-\\x{00FF}]",
-                m -> "\\\\u" + String.format("%04x", (int)m.group(0).charAt(0)));
+                m -> "\\\\u" + String.format("%04x", (int) m.group(0).charAt(0)));
     }
 
     private static String unescapeUnicode(String escape) {
@@ -671,9 +671,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns a copy of the object where all characters, in keys and values that are not in
-     * the Unicode range of 0x0000-0x00FF, have been escaped. This is useful when using
-     * <code>store()</code> to write to an output that does not support UTF8.
+     * Returns a copy of the object where all characters, in keys and values that are not in the
+     * Unicode range of 0x0000-0x00FF, have been escaped. This is useful when using <code>store()
+     * </code> to write to an output that does not support UTF8.
      *
      * @return A <code>Properties</code> with encoded keys and values
      */
@@ -682,7 +682,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private static List<PropertiesParser.Token> escapeTokens(List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(tokens, ts -> Arrays.asList(escapeToken(ts.get(0)), ts.get(1), escapeToken(ts.get(2))));
+        return mapKeyValues(
+                tokens,
+                ts -> Arrays.asList(escapeToken(ts.get(0)), ts.get(1), escapeToken(ts.get(2))));
     }
 
     private static PropertiesParser.Token escapeToken(PropertiesParser.Token token) {
@@ -694,18 +696,22 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns a copy of the object where all Unicode escape sequences, in keys and values,
-     * have been decoded into their actual Unicode characters. This is useful when using
-     * <code>store()</code> to write to an output that supports UTF8.
+     * Returns a copy of the object where all Unicode escape sequences, in keys and values, have
+     * been decoded into their actual Unicode characters. This is useful when using <code>store()
+     * </code> to write to an output that supports UTF8.
      *
      * @return A <code>Properties</code> without Unicode escape sequences in its keys and values
      */
     public Properties unescaped() {
-        return new Properties(defaults != null ? defaults.unescaped() : null, unescapeTokens(tokens));
+        return new Properties(
+                defaults != null ? defaults.unescaped() : null, unescapeTokens(tokens));
     }
 
-    private static List<PropertiesParser.Token> unescapeTokens(List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(tokens, ts -> Arrays.asList(unescapeToken(ts.get(0)), ts.get(1), unescapeToken(ts.get(2))));
+    private static List<PropertiesParser.Token> unescapeTokens(
+            List<PropertiesParser.Token> tokens) {
+        return mapKeyValues(
+                tokens,
+                ts -> Arrays.asList(unescapeToken(ts.get(0)), ts.get(1), unescapeToken(ts.get(2))));
     }
 
     private static PropertiesParser.Token unescapeToken(PropertiesParser.Token token) {
@@ -719,36 +725,43 @@ public class Properties extends AbstractMap<String, String> {
     private static List<PropertiesParser.Token> mapKeyValues(
             List<PropertiesParser.Token> tokens,
             Function<List<PropertiesParser.Token>, List<PropertiesParser.Token>> mapper) {
-        return combined(tokens).map(ts -> {
-            if (ts.get(0).type == PropertiesParser.Type.KEY) {
-                return mapper.apply(ts);
-            } else {
-                return ts;
-            }
-        }).flatMap(Collection::stream).collect(Collectors.toList());
+        return combined(tokens)
+                .map(
+                        ts -> {
+                            if (ts.get(0).type == PropertiesParser.Type.KEY) {
+                                return mapper.apply(ts);
+                            } else {
+                                return ts;
+                            }
+                        })
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
     }
 
-    private static Stream<List<PropertiesParser.Token>> combined(List<PropertiesParser.Token> tokens) {
-        Iterator<List<PropertiesParser.Token>> iter = new Iterator<List<PropertiesParser.Token>>() {
-            Iterator<PropertiesParser.Token> i = tokens.iterator();
+    private static Stream<List<PropertiesParser.Token>> combined(
+            List<PropertiesParser.Token> tokens) {
+        Iterator<List<PropertiesParser.Token>> iter =
+                new Iterator<List<PropertiesParser.Token>>() {
+                    Iterator<PropertiesParser.Token> i = tokens.iterator();
 
-            @Override
-            public boolean hasNext() {
-                return i.hasNext();
-            }
+                    @Override
+                    public boolean hasNext() {
+                        return i.hasNext();
+                    }
 
-            @Override
-            public List<PropertiesParser.Token> next() {
-                PropertiesParser.Token t = i.next();
-                if (t.type == PropertiesParser.Type.KEY) {
-                    return Arrays.asList(t, i.next(), i.next());
-                } else {
-                    return Collections.singletonList(t);
-                }
-            }
-        };
+                    @Override
+                    public List<PropertiesParser.Token> next() {
+                        PropertiesParser.Token t = i.next();
+                        if (t.type == PropertiesParser.Type.KEY) {
+                            return Arrays.asList(t, i.next(), i.next());
+                        } else {
+                            return Collections.singletonList(t);
+                        }
+                    }
+                };
 
-        return StreamSupport.stream(Spliterators.spliterator(iter, tokens.size(), Spliterator.SORTED), false);
+        return StreamSupport.stream(
+                Spliterators.spliterator(iter, tokens.size(), Spliterator.SORTED), false);
     }
 
     /**
