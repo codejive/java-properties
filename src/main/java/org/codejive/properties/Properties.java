@@ -903,18 +903,48 @@ public class Properties extends AbstractMap<String, String> {
         Cursor pos = first();
         if (comment.length > 0) {
             pos = skipHeaderCommentLines();
+            String nl = determineNewline();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
                 writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
-                writer.write(PropertiesParser.Token.EOL.getRaw());
+                writer.write(nl);
             }
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
-            writer.write(PropertiesParser.Token.EOL.getRaw());
+            writer.write(nl);
         }
         while (pos.hasToken()) {
             writer.write(pos.raw());
             pos.next();
+        }
+    }
+
+    /**
+     * This method determines the newline string to use when generating line terminators. It looks
+     * at all existing line terminators and will use those for any new lines. In case of ambiguity
+     * (a file contains both LF and CRLF terminators) it will return the system's default line
+     * ending.
+     *
+     * @return A string containing the line ending to use
+     */
+    private String determineNewline() {
+        boolean lf = false;
+        boolean crlf = false;
+        for (PropertiesParser.Token token : tokens) {
+            if (token.isWs()) {
+                if (token.raw.endsWith("/r/n")) {
+                    crlf = true;
+                } else if (token.raw.endsWith("/n")) {
+                    lf = true;
+                }
+            }
+        }
+        if (lf && crlf) {
+            return System.lineSeparator();
+        } else if (crlf) {
+            return "/r/n";
+        } else {
+            return "\n";
         }
     }
 

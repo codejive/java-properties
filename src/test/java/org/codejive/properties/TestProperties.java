@@ -61,9 +61,65 @@ public class TestProperties {
                         new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
     }
 
+    void testLoadCrLf() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/testcrlf.properties"));
+        assertThat(p).size().isEqualTo(7);
+        assertThat(p.keySet())
+                .containsExactly(
+                        "one", "two", "three", " with spaces", "altsep", "multiline", "key.4");
+        assertThat(p.rawKeySet())
+                .containsExactly(
+                        "one", "two", "three", "\\ with\\ spaces", "altsep", "multiline", "key.4");
+        assertThat(p.values())
+                .containsExactly(
+                        "simple",
+                        "value containing spaces",
+                        "and escapes\n\t\r\f",
+                        "everywhere  ",
+                        "value",
+                        "one two  three",
+                        "\u1234\u1234");
+        assertThat(p.rawValues())
+                .containsExactly(
+                        "simple",
+                        "value containing spaces",
+                        "and escapes\\n\\t\\r\\f",
+                        "everywhere  ",
+                        "value",
+                        "one \\\n    two  \\\n\tthree",
+                        "\\u1234\u1234");
+        assertThat(p.entrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\n\t\r\f"),
+                        new AbstractMap.SimpleEntry<>(" with spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one two  three"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\u1234\u1234"));
+        assertThat(p.rawEntrySet())
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>("one", "simple"),
+                        new AbstractMap.SimpleEntry<>("two", "value containing spaces"),
+                        new AbstractMap.SimpleEntry<>("three", "and escapes\\n\\t\\r\\f"),
+                        new AbstractMap.SimpleEntry<>("\\ with\\ spaces", "everywhere  "),
+                        new AbstractMap.SimpleEntry<>("altsep", "value"),
+                        new AbstractMap.SimpleEntry<>("multiline", "one \\\n    two  \\\n\tthree"),
+                        new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
+    }
+
     @Test
     void testStore() throws IOException, URISyntaxException {
         Path f = getResource("/test.properties");
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(f));
+    }
+
+    @Test
+    void testStoreCrLf() throws IOException, URISyntaxException {
+        Path f = getResource("/testcrlf.properties");
         Properties p = Properties.loadProperties(f);
         StringWriter sw = new StringWriter();
         p.store(sw);

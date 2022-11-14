@@ -283,8 +283,8 @@ class PropertiesParser {
     }
 
     private void readEol(int ch) throws IOException {
-        if (ch == '\n') {
-            if (peekChar() == '\r') {
+        if (ch == '\r') {
+            if (peekChar() == '\n') {
                 str.append((char) readChar());
             }
         }
@@ -327,15 +327,15 @@ class PropertiesParser {
                         txt.append((char) Integer.parseInt(num, 16));
                         i += 4;
                         break;
-                    case '\n':
-                        // Skip the next character if it's a '\r'
-                        if (i < escape.length() && escape.charAt(i + 1) == '\r') {
+                    case '\r':
+                        // Skip the next character if it's a '\n'
+                        if (i < (escape.length() - 1) && escape.charAt(i + 1) == '\n') {
                             i++;
                         }
                         // fall-through!
-                    case '\r':
+                    case '\n':
                         // Skip any leading whitespace
-                        while (i < escape.length()
+                        while (i < (escape.length() - 1)
                                 && isWhitespaceChar(ch = escape.charAt(i + 1))
                                 && !isEol(ch)) {
                             i++;
