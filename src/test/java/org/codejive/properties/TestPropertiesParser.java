@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -91,5 +92,18 @@ public class TestPropertiesParser {
         Stream<Token> tokens = PropertiesParser.tokens(rdr);
         String props2 = tokens.map(Token::getRaw).collect(Collectors.joining());
         assertThat(props2).isEqualTo(props);
+    }
+
+    @Test
+    void testCommentOnFirstLine() throws IOException {
+        List<String> expectedComments = new ArrayList<>();
+        expectedComments.add("! Hi");
+        expectedComments.add("! Hello");
+
+        Properties props = new Properties();
+        props.load(new StringReader("! Hi\n! Hello\nfoo=bar\n"));
+
+        List<String> comments = props.getComment("foo");
+        assertThat(comments).isEqualTo(expectedComments);
     }
 }

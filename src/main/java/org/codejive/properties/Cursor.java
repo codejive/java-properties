@@ -120,7 +120,8 @@ public class Cursor {
 
     public boolean prevIf(Predicate<PropertiesParser.Token> accept) {
         if (hasToken() && accept.test(token())) {
-            return prev().hasToken();
+            prev();
+            return true;
         } else {
             return false;
         }
