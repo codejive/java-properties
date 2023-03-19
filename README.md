@@ -97,10 +97,26 @@ Retrieving values is simple:
 ```java
 p.get("port"); // Returns "8080"
 p.getProperty("port"); // Also returns "8080"
-p.getComment("port") // Returns ["Port number to", "use for the server"]
+p.getComment("port") // Returns ["# Port number to", "# use for the server"]
 ```
 
 ### Comments
+
+Just like with the original `Properties` implementation, lines starting with a
+`#` or a `!` are considered comments. Consecutive comments lines that start
+with the same comment character and have no other lines in between (not even
+empty lines) are considered a single multi-line comment.
+
+```properties
+# A single comment line
+
+! A multi-line comment
+! spanning two lines
+
+# This is actually a single comment line
+! And this is a single comment line too
+two=Second value
+```
 
 Comments are considered either "free" or "attached", which you could see as either being
 just part of the file or attached to a property. For example:
@@ -110,7 +126,7 @@ just part of the file or attached to a property. For example:
 
 one=First value (that has no comment)
 
-# Another free comment
+! Another free comment
 
 # An attached comment
 two=Second value
