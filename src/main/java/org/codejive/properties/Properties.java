@@ -426,10 +426,15 @@ public class Properties extends AbstractMap<String, String> {
     @Override
     public String remove(Object key) {
         String skey = key.toString();
-        removeItem(skey);
-        return values.remove(skey);
+        if (containsKey(key)) {
+            removeItem(skey);
+            return values.remove(skey);
+        } else {
+            return null;
+        }
     }
 
+    // Calling code MUST make sure skey exists!
     private void removeItem(String skey) {
         setComment(skey, Collections.emptyList());
         Cursor pos = indexOf(skey);
@@ -580,7 +585,11 @@ public class Properties extends AbstractMap<String, String> {
 
     private List<Integer> findPropertyCommentLines(String key) {
         Cursor pos = indexOf(key);
-        return findPropertyCommentLines(pos);
+        if (pos.hasToken()) {
+            return findPropertyCommentLines(pos);
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     /**

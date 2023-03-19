@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
 
 public class TestProperties {
@@ -198,6 +199,24 @@ public class TestProperties {
     }
 
     @Test
+    void testGetNonExistent() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThat(p.get("wrong")).isNull();
+    }
+
+    @Test
+    void testGetPropertyNonExistent() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThat(p.getProperty("wrong")).isNull();
+    }
+
+    @Test
+    void testGetPropertyDefault() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThat(p.getProperty("wrong", "right")).isEqualTo("right");
+    }
+
+    @Test
     void testGetComment() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         assertThat(p.getComment("one")).containsExactly("! comment3");
@@ -207,12 +226,19 @@ public class TestProperties {
     }
 
     @Test
+    void testGetCommentNonExistent() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThat(p.getComment("wrong")).isEmpty();
+    }
+
+    @Test
     void testCommentFirstLine() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test-commentfirstline.properties"));
         assertThat(p.getComment("one")).containsExactly("#comment1", "#  comment2");
         StringWriter sw = new StringWriter();
         p.store(sw);
-        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-commentfirstline.properties")));
+        assertThat(sw.toString())
+                .isEqualTo(readAll(getResource("/test-commentfirstline.properties")));
     }
 
     @Test
@@ -227,6 +253,16 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-comment.properties")));
+    }
+
+    @Test
+    void testSetCommentNonExistent() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThatThrownBy(
+                        () -> {
+                            p.setComment("wrong", "dummy");
+                        })
+                .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
@@ -497,6 +533,12 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-removeall.properties")));
+    }
+
+    @Test
+    void testRemoveNonExistent() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        assertThat(p.remove("wrong")).isNull();
     }
 
     @Test
