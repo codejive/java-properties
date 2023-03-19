@@ -207,6 +207,15 @@ public class TestProperties {
     }
 
     @Test
+    void testCommentFirstLine() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test-commentfirstline.properties"));
+        assertThat(p.getComment("one")).containsExactly("#comment1", "#  comment2");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-commentfirstline.properties")));
+    }
+
+    @Test
     void testSetComment() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         p.setComment("one", "new single comment");
@@ -609,6 +618,15 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.unescaped().store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-unescaped.properties")));
+    }
+
+    @Test
+    void testCursor() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test.properties"));
+        Cursor c = p.first();
+        assertThat(c.nextCount(t -> true)).isEqualTo(p.last().position() + 1);
+        c = p.last();
+        assertThat(c.prevCount(t -> true)).isEqualTo(p.last().position() + 1);
     }
 
     private Path getResource(String name) throws URISyntaxException {

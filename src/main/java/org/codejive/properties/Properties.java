@@ -969,15 +969,15 @@ public class Properties extends AbstractMap<String, String> {
         }
     }
 
-    private Cursor index(int index) {
+    Cursor index(int index) {
         return Cursor.index(tokens, index);
     }
 
-    private Cursor first() {
+    Cursor first() {
         return Cursor.first(tokens);
     }
 
-    private Cursor last() {
+    Cursor last() {
         return Cursor.last(tokens);
     }
 
