@@ -31,14 +31,14 @@ Add it to your build file with:
 <dependency>
     <groupId>org.codejive</groupId>
     <artifactId>java-properties</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.6</version>
 </dependency>
 ```
 
 or
 
 ```groovy
-implementation 'org.codejive:java-properties:0.0.2'
+implementation 'org.codejive:java-properties:0.0.6'
 ```
 
 And add this import to your code:
