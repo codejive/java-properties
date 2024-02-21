@@ -44,7 +44,7 @@ implementation 'org.codejive:java-properties:0.0.6'
 And add this import to your code:
 
 ```java
-import org.codejive.Properties;
+import org.codejive.properties.Properties;
 ```
 
 ### Usage
