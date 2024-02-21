@@ -30,6 +30,8 @@ public class TestPropertiesParser {
                     + "    two  \\\r\n"
                     + "\tthree\n"
                     + "key.4 = \\u1234\r\n"
+                    + "line-with-missing-delim  \n"
+                    + "multidelim===value\n"
                     + "  # final comment";
 
     @Test
@@ -81,6 +83,14 @@ public class TestPropertiesParser {
                         new Token(Type.SEPARATOR, " = "),
                         new Token(Type.VALUE, "\\u1234", "\u1234"),
                         new Token(Type.WHITESPACE, "\r\n"),
+                        new Token(Type.KEY, "line-with-missing-delim"),
+                        new Token(Type.SEPARATOR, "  "),
+                        new Token(Type.VALUE, ""),
+                        new Token(Type.WHITESPACE, "\n"),
+                        new Token(Type.KEY, "multidelim"),
+                        new Token(Type.SEPARATOR, "="),
+                        new Token(Type.VALUE, "==value"),
+                        new Token(Type.WHITESPACE, "\n"),
                         new Token(Type.WHITESPACE, "  "),
                         new Token(Type.COMMENT, "# final comment"));
     }

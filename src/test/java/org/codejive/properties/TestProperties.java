@@ -671,6 +671,26 @@ public class TestProperties {
         assertThat(c.prevCount(t -> true)).isEqualTo(p.last().position() + 1);
     }
 
+    @Test
+    void testMissingDelim() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test-missingdelim.properties"));
+        assertThat(p).containsOnlyKeys("A-string-without-delimiter");
+        assertThat(p).containsEntry("A-string-without-delimiter", "");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-missingdelim.properties")));
+    }
+
+    @Test
+    void testMultiDelim() throws IOException, URISyntaxException {
+        Properties p = Properties.loadProperties(getResource("/test-multidelim.properties"));
+        assertThat(p).containsOnlyKeys("key");
+        assertThat(p).containsEntry("key", "==value");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-multidelim.properties")));
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         return Paths.get(getClass().getResource(name).toURI());
     }
