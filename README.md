@@ -103,9 +103,9 @@ p.getComment("port") // Returns ["# Port number to", "# use for the server"]
 ### Comments
 
 Just like with the original `Properties` implementation, lines starting with a
-`#` or a `!` are considered comments. Consecutive comments lines that start
-with the same comment character and have no other lines in between (not even
-empty lines) are considered a single multi-line comment.
+`#` or a `!` are considered comments. Consecutive comments lines (even the ones
+that start with another comment character) and have no other lines in between
+(not even empty lines) are considered a single multi-line comment.
 
 ```properties
 # A single comment line
@@ -113,8 +113,8 @@ empty lines) are considered a single multi-line comment.
 ! A multi-line comment
 ! spanning two lines
 
-# This is actually a single comment line
-! And this is a single comment line too
+# This is also a multi-line comment
+! but using different comment chars
 two=Second value
 ```
 
