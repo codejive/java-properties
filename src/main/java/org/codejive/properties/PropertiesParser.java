@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Objects;
 import java.util.Spliterators;
-import java.util.function.BiFunction;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -211,31 +213,36 @@ class PropertiesParser {
         if (isEof(ch)) {
             return null;
         }
-        int oldch = -1;
-        BiFunction<Integer, Integer, Boolean> isValid = (c, oldc) -> false;
+        Function<Integer, Boolean> isValid = (c) -> false;
         Type nextState = null;
         if (state == null) {
             if (isCommentChar(ch)) {
                 state = Type.COMMENT;
-                isValid = (c, oldc) -> !isEol(c) && !isEof(c);
-            } else if (isWhitespaceChar(ch)) {
+                isValid = (c) -> !isEol(c) && !isEof(c);
+            } else if (isWhitespaceEolChar(ch)) {
                 state = Type.WHITESPACE;
-                isValid = (c, oldc) -> isWhitespaceChar(c) && !isEol(oldc);
+                final AtomicInteger oldc = new AtomicInteger(-1);
+                isValid = (c) -> isWhitespaceEolChar(c) && !isEol(oldc.getAndSet(c));
             } else {
                 state = Type.KEY;
-                isValid = (c, oldc) -> !isSeparatorChar(c);
+                isValid =
+                        (c) ->
+                                !isSeparatorChar(c)
+                                        && !isWhitespaceChar(c)
+                                        && !isEol(c)
+                                        && !isEof(c);
                 nextState = Type.SEPARATOR;
             }
         } else if (state == Type.SEPARATOR) {
-            isValid = (c, oldc) -> isSeparatorChar(c);
+            final AtomicBoolean once = new AtomicBoolean(true);
+            isValid = (c) -> isWhitespaceChar(c) || (isSeparatorChar(c) && once.getAndSet(false));
             nextState = Type.VALUE;
         } else if (state == Type.VALUE) {
-            isValid = (c, oldc) -> !isEol(c) && !isEof(c);
+            isValid = (c) -> !isEol(c) && !isEof(c);
         }
         while (true) {
-            if (isValid.apply(ch, oldch)) {
+            if (isValid.apply(ch)) {
                 addChar(readChar());
-                oldch = ch;
                 ch = peekChar();
             } else {
                 String text = string();
@@ -336,8 +343,7 @@ class PropertiesParser {
                     case '\n':
                         // Skip any leading whitespace
                         while (i < (escape.length() - 1)
-                                && isWhitespaceChar(ch = escape.charAt(i + 1))
-                                && !isEol(ch)) {
+                                && isWhitespaceChar(ch = escape.charAt(i + 1))) {
                             i++;
                         }
                         break;
@@ -353,11 +359,15 @@ class PropertiesParser {
     }
 
     private static boolean isSeparatorChar(int ch) {
-        return ch == ' ' || ch == '\t' || ch == '=' || ch == ':';
+        return ch == '=' || ch == ':';
     }
 
     private static boolean isWhitespaceChar(int ch) {
-        return ch == ' ' || ch == '\t' || ch == '\f' || isEol(ch);
+        return ch == ' ' || ch == '\t' || ch == '\f';
+    }
+
+    private static boolean isWhitespaceEolChar(int ch) {
+        return isWhitespaceChar(ch) || isEol(ch);
     }
 
     private static boolean isCommentChar(int ch) {
