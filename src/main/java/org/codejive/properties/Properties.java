@@ -774,6 +774,18 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
+     * Copies all entries from the <code>java.util.Properties</code> object to this object
+     *
+     * @param properties a <code>java.util.Properties</code> object
+     * @throws NullPointerException if the properties parameter is null
+     */
+    public void putAll(java.util.Properties properties) {
+        for (Entry<Object, Object> entry : properties.entrySet()) {
+            put(entry.getKey().toString(), entry.getValue().toString());
+        }
+    }
+
+    /**
      * Returns a <code>java.util.Properties</code> with the same contents as this object. The
      * information is a copy, changes to one Properties object will not affect the other.
      *

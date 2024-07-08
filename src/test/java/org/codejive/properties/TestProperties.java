@@ -691,6 +691,15 @@ public class TestProperties {
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-multidelim.properties")));
     }
 
+    @Test
+    void testPutAll() {
+        Properties p = new Properties();
+        java.util.Properties ju = new java.util.Properties();
+        ju.setProperty("foo", "bar");
+        p.putAll(ju);
+        assertThat(p.getProperty("foo")).isEqualTo("bar");
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         return Paths.get(getClass().getResource(name).toURI());
     }
