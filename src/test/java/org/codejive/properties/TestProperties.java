@@ -119,6 +119,15 @@ public class TestProperties {
     }
 
     @Test
+    void testStoreOutputStream() throws IOException, URISyntaxException {
+        Path f = getResource("/test-escaped.properties");
+        Properties p = Properties.loadProperties(f);
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        p.store(os);
+        assertThat(os.toString()).isEqualTo(readAll(f));
+    }
+
+    @Test
     void testStoreCrLf() throws IOException, URISyntaxException {
         Path f = getResource("/testcrlf.properties");
         Properties p = Properties.loadProperties(f);

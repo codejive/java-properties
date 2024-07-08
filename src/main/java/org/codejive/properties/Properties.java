@@ -910,7 +910,9 @@ public class Properties extends AbstractMap<String, String> {
      * @throws IOException Thrown when any IO error occurs during operation
      */
     public void store(OutputStream out, String... comment) throws IOException {
-        store(new OutputStreamWriter(out, StandardCharsets.ISO_8859_1), comment);
+        store(
+                new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.ISO_8859_1)),
+                comment);
     }
 
     /**
@@ -938,6 +940,7 @@ public class Properties extends AbstractMap<String, String> {
             writer.write(pos.raw());
             pos.next();
         }
+        writer.flush();
     }
 
     /**
