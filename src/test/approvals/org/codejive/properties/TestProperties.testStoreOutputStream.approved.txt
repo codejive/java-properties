@@ -1,0 +1,17 @@
+#comment1
+#  comment2
+
+! comment3
+one=simple
+two=value containing spaces
+# another comment
+! and a comment
+! block
+three=and escapes\n\t\r\f
+\ with\ spaces   =    everywhere  
+altsep:value
+multiline = one \
+    two  \
+	three
+key.4 = \u1234\u1234
+# final comment

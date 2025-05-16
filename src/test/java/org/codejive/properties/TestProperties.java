@@ -11,6 +11,7 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.approvaltests.Approvals;
 import org.junit.jupiter.api.Test;
 
 public class TestProperties {
@@ -124,7 +125,7 @@ public class TestProperties {
         Properties p = Properties.loadProperties(f);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         p.store(os);
-        assertThat(os.toString()).isEqualTo(readAll(f));
+        Approvals.verify(os.toString());
     }
 
     @Test
