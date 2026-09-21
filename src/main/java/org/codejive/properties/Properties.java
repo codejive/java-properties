@@ -617,14 +617,23 @@ public class Properties extends AbstractMap<String, String> {
         return Collections.unmodifiableList(result);
     }
 
-    private Cursor indexOf(String key) {
+    /**
+     * @param key the key of the property whose token is searched.
+     * @return a Cursor pointing to the {@link PropertiesParser.Type#KEY} token of the property.
+     * <br/> Or a Cursor pointing to {@code -1} if no such property exists.
+     */
+    public Cursor indexOf(String key) {
         return index(
                 tokens.indexOf(
                         new PropertiesParser.Token(
                                 PropertiesParser.Type.KEY, escapeKey(key), key)));
     }
 
-    private static String escapeValue(String value) {
+    /**
+     * @param value the value to escape
+     * @return the value, escaped such that it can be stored in a .properties file
+     */
+    public static String escapeValue(String value) {
         return value.replace("\\", "\\\\")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
@@ -632,7 +641,11 @@ public class Properties extends AbstractMap<String, String> {
                 .replace("\f", "\\f");
     }
 
-    private static String escapeKey(String key) {
+    /**
+     * @param key the key to escape
+     * @return the key, escaped such that it can be stored in a .properties file
+     */
+    public static String escapeKey(String key) {
         return escapeValue(key).replace(" ", "\\ ");
     }
 
@@ -997,11 +1010,17 @@ public class Properties extends AbstractMap<String, String> {
         return Cursor.index(tokens, index);
     }
 
-    Cursor first() {
+    /**
+     * @return a Cursor pointing to the first token, or to {@code -1} if no tokens have been loaded.
+     */
+    public Cursor first() {
         return Cursor.first(tokens);
     }
 
-    Cursor last() {
+    /**
+     * @return a Cursor pointing to the last token, or to {@code -1} if no tokens have been loaded.
+     */
+    public Cursor last() {
         return Cursor.last(tokens);
     }
 

@@ -17,7 +17,7 @@ import java.util.stream.StreamSupport;
  * input which makes it possible to exactly recreate the original, including all whitespace and
  * comments.
  */
-class PropertiesParser {
+public class PropertiesParser {
 
     /** The type of token. */
     public enum Type {
@@ -59,7 +59,7 @@ class PropertiesParser {
          * @param type The token's type
          * @param raw The token's value
          */
-        Token(Type type, String raw) {
+        public Token(Type type, String raw) {
             this(type, raw, null);
         }
 
@@ -71,7 +71,7 @@ class PropertiesParser {
          * @param raw The token's raw value (including escape sequences)
          * @param text The token's processed value (no escape sequences)
          */
-        Token(Type type, String raw, String text) {
+        public Token(Type type, String raw, String text) {
             this.type = type;
             this.raw = raw;
             if (raw.equals(text)) {
@@ -310,7 +310,7 @@ class PropertiesParser {
      * @param escape Input string
      * @return Decoded string
      */
-    static String unescape(String escape) {
+    public static String unescape(String escape) {
         StringBuilder txt = new StringBuilder();
         for (int i = 0; i < escape.length(); i++) {
             char ch = escape.charAt(i);
@@ -358,7 +358,7 @@ class PropertiesParser {
         return txt.toString();
     }
 
-    private static boolean isSeparatorChar(int ch) {
+    public static boolean isSeparatorChar(int ch) {
         return ch == '=' || ch == ':';
     }
 
@@ -370,7 +370,7 @@ class PropertiesParser {
         return isWhitespaceChar(ch) || isEol(ch);
     }
 
-    private static boolean isCommentChar(int ch) {
+    public static boolean isCommentChar(int ch) {
         return ch == '#' || ch == '!';
     }
 
