@@ -34,7 +34,7 @@
         <junit.version>5.12.2</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <spotless.version>2.46.1</spotless.version>
-        <google-java-format.version>1.7</google-java-format.version>
+        <google-java-format.version>1.22.0</google-java-format.version>
     </properties>
 
     <dependencies>
@@ -67,6 +67,9 @@
                                 <include>.gitignore</include>
                                 <include>.gitattributes</include>
                             </includes>
+                            <excludes>
+                                <exclude>target/**</exclude>
+                            </excludes>
                             <trimTrailingWhitespace />
                             <endWithNewline />
                             <indent>
@@ -76,6 +79,9 @@
                         </format>
                     </formats>
                     <java>
+                        <excludes>
+                            <exclude>target/**</exclude>
+                        </excludes>
                         <googleJavaFormat>
                             <version>${google-java-format.version}</version>
                             <style>AOSP</style>
