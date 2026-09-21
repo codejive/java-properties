@@ -1,5 +1,7 @@
 project:
   name: java-properties
+  java:
+    groupId: org.codejive
   description: A Java Properties parser that preserves comments and formatting
   longDescription: |
     A drop-in replacement for java.util.Properties that preserves comments and
@@ -36,5 +38,6 @@ deploy:
       java-properties:
         active: RELEASE
         url: https://central.sonatype.com/api/v1/publisher
+        namespace: org.codejive
         stagingRepositories:
           - target/staging-deploy

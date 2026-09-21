@@ -41,6 +41,7 @@ jobs:
             echo "A release tag or workflow version is required"
             exit 1
           fi
+          echo "JRELEASER_PROJECT_VERSION=$VERSION" >> "$GITHUB_ENV"
           ./mvnw -B versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
 
       - name: Stage Maven Central artifacts
