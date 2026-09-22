@@ -620,7 +620,8 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * @param key the key of the property whose token is searched.
      * @return a Cursor pointing to the {@link PropertiesParser.Type#KEY} token of the property.
-     * <br/> Or a Cursor pointing to {@code -1} if no such property exists.
+     *     <br>
+     *     Or a Cursor pointing to {@code -1} if no such property exists.
      */
     public Cursor indexOf(String key) {
         return index(

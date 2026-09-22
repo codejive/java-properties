@@ -1,0 +1,43 @@
+project:
+  name: java-properties
+  java:
+    groupId: org.codejive
+  description: A Java Properties parser that preserves comments and formatting
+  longDescription: |
+    A drop-in replacement for java.util.Properties that preserves comments and
+    formatting when properties files are read, changed, and written.
+  authors:
+    - Tako Schotanus
+  license: Apache-2.0
+  links:
+    homepage: https://github.com/codejive/java-properties
+  stereotype: NONE
+
+release:
+  github:
+    owner: codejive
+    name: java-properties
+    overwrite: true
+    draft: false
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
+
+signing:
+  active: ALWAYS
+  armored: true
+
+checksum:
+  individual: true
+
+deploy:
+  maven:
+    mavenCentral:
+      java-properties:
+        active: RELEASE
+        url: https://central.sonatype.com/api/v1/publisher
+        namespace: org.codejive
+        stagingRepositories:
+          - target/staging-deploy

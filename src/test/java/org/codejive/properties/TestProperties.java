@@ -610,13 +610,15 @@ public class TestProperties {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         StringWriter sw = new StringWriter();
         p.asJUProperties().store(sw, null);
-        assertThat(sw.toString()).contains("one=simple\n");
-        assertThat(sw.toString()).contains("two=value containing spaces\n");
-        assertThat(sw.toString()).contains("three=and escapes\\n\\t\\r\\f\n");
-        assertThat(sw.toString()).contains("\\ with\\ spaces=everywhere  \n");
-        assertThat(sw.toString()).contains("altsep=value\n");
-        assertThat(sw.toString()).contains("multiline=one two  three\n");
-        assertThat(sw.toString()).contains("key.4=\u1234\u1234\n");
+        assertThat(sw.toString()).contains("one=simple" + System.lineSeparator());
+        assertThat(sw.toString()).contains("two=value containing spaces" + System.lineSeparator());
+        assertThat(sw.toString())
+                .contains("three=and escapes\\n\\t\\r\\f" + System.lineSeparator());
+        assertThat(sw.toString())
+                .contains("\\ with\\ spaces=everywhere  " + System.lineSeparator());
+        assertThat(sw.toString()).contains("altsep=value" + System.lineSeparator());
+        assertThat(sw.toString()).contains("multiline=one two  three" + System.lineSeparator());
+        assertThat(sw.toString()).contains("key.4=\u1234\u1234" + System.lineSeparator());
     }
 
     @Test
@@ -631,13 +633,15 @@ public class TestProperties {
         p.put("key.4", "\u1234");
         StringWriter sw = new StringWriter();
         p.store(sw, null);
-        assertThat(sw.toString()).contains("one=simple\n");
-        assertThat(sw.toString()).contains("two=value containing spaces\n");
-        assertThat(sw.toString()).contains("three=and escapes\\n\\t\\r\\f\n");
-        assertThat(sw.toString()).contains("\\ with\\ spaces=everywhere  \n");
-        assertThat(sw.toString()).contains("altsep=value\n");
-        assertThat(sw.toString()).contains("multiline=one two  three\n");
-        assertThat(sw.toString()).contains("key.4=\u1234\n");
+        assertThat(sw.toString()).contains("one=simple" + System.lineSeparator());
+        assertThat(sw.toString()).contains("two=value containing spaces" + System.lineSeparator());
+        assertThat(sw.toString())
+                .contains("three=and escapes\\n\\t\\r\\f" + System.lineSeparator());
+        assertThat(sw.toString())
+                .contains("\\ with\\ spaces=everywhere  " + System.lineSeparator());
+        assertThat(sw.toString()).contains("altsep=value" + System.lineSeparator());
+        assertThat(sw.toString()).contains("multiline=one two  three" + System.lineSeparator());
+        assertThat(sw.toString()).contains("key.4=\u1234" + System.lineSeparator());
         java.util.Properties p2 = new java.util.Properties();
         p2.load(new StringReader(sw.toString()));
         assertThat(p2).size().isEqualTo(7);
