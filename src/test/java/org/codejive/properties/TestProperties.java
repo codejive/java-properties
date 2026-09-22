@@ -470,6 +470,55 @@ public class TestProperties {
     }
 
     @Test
+    void testPutFirstWithHeader1Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader2Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader3Eol() throws IOException, URISyntaxException {
+        String expected = "# A header comment\n\n\nfirst=dummy";
+        try (StringReader sr = new StringReader("# A header comment\n\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString()).isEqualTo(expected);
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeaderAndTrailer() throws IOException, URISyntaxException {
+        String given = "# A header comment\n\n\n# A trailer\n";
+        String expected = "# A header comment\n\n\nfirst=dummy\n# A trailer\n";
+        try (StringReader sr = new StringReader(given)) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString()).isEqualTo(expected);
+        }
+    }
+
+    @Test
     void testPutNull() throws IOException, URISyntaxException {
         Properties p = new Properties();
         assertThatThrownBy(
@@ -713,6 +762,85 @@ public class TestProperties {
         ju.setProperty("foo", "bar");
         p.putAll(ju);
         assertThat(p.getProperty("foo")).isEqualTo("bar");
+    }
+
+    @Test
+    void testLoadEmptyValue() throws IOException {
+        String document = "firstline=\n" +
+                "secondline=";
+        Properties p = Properties.loadProperties(new StringReader(document));
+        java.util.Properties ju = new java.util.Properties();
+        ju.load(new StringReader(document));
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // also verify that put works
+        p.put("thirdline", "");
+        ju.put("thirdline", "");
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify store
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("firstline=\n" +
+                "secondline=\n" +
+                "thirdline=");
+    }
+
+    @Test
+    void testLoadMissingSeparator() throws IOException {
+        String document = "firstline\n" +
+                "secondline";
+        Properties p = Properties.loadProperties(new StringReader(document));
+        java.util.Properties ju = new java.util.Properties();
+        ju.load(new StringReader(document));
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // also verify that put works
+        p.put("thirdline", "");
+        ju.put("thirdline", "");
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify store
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("firstline\n" +
+                "secondline\n" +
+                "thirdline=");
+    }
+
+    @Test
+    void testPutTrailingSpace() throws IOException {
+        String document = "foo=x  \n";
+        Properties p = Properties.loadProperties(new StringReader(document));
+        p.put("bar", "");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("foo=x  \n" +
+                "bar=\n");
+    }
+
+    @Test
+    void testPutMissingSeparatorTrailingSpace() throws IOException {
+        String document = "foo  \n";
+        Properties p = Properties.loadProperties(new StringReader(document));
+        p.put("bar", "");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("foo  \n" +
+                "bar=\n");
+    }
+
+    @Test
+    void testPutMissingSeparatorTrailingComment() throws IOException {
+        String document = "foo\n" +
+                "# trailer";
+        Properties p = Properties.loadProperties(new StringReader(document));
+        p.put("bar", "");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("foo\n" +
+                "bar=\n" +
+                "# trailer");
     }
 
     private Path getResource(String name) throws URISyntaxException {

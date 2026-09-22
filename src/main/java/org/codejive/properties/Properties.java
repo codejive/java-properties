@@ -393,16 +393,12 @@ public class Properties extends AbstractMap<String, String> {
         while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
             pos.prev();
         }
-        // Make sure we're either at the start or we've found a VALUE
-        validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
+        // Make sure we're either at the start or we've found a property
+        validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE, PropertiesParser.Type.SEPARATOR, PropertiesParser.Type.KEY), pos);
         // Add a newline whitespace token if necessary
         if (pos.hasToken()) {
             pos.next();
-            if (pos.isEol()) {
-                pos.next().addEol().prev();
-            } else {
-                pos.addEol();
-            }
+            pos.addEol();
         } else {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
@@ -410,10 +406,17 @@ public class Properties extends AbstractMap<String, String> {
             pos = skipHeaderCommentLines();
             if (pos.position() > 0) {
                 // We have to make sure there are at least 2 EOLs after the last comment
+                pos.prev(); // move cursor back onto the last eol (otherwise prevCount fails)
                 int eols = pos.prevCount(t -> t.isEol());
-                for (int i = 0; i < 2 - eols; i++) {
+                pos.skip(eols); // return to the position from before 'prevCount' was called
+                pos.next(); // move cursor past the last eol
+                int numEolsToAdd = Math.max(0, 2 - eols);
+                for (int i = 0; i < numEolsToAdd; i++) {
                     pos.addEol();
                 }
+                // if there is another comment following this token, push it to a new line below this property.
+                if (!pos.atEnd())
+                    pos.addEol().prev();
             }
         }
         // Add tokens for key, separator and value
@@ -858,11 +861,16 @@ public class Properties extends AbstractMap<String, String> {
         String key = null;
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
+                if (key != null)
+                    values.put(key, "");
                 key = token.getText();
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
+                key = null;
             }
         }
+        if (key != null)
+            values.put(key, "");
         return this;
     }
 

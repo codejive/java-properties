@@ -24,8 +24,18 @@ public class Cursor {
         this.index = index;
     }
 
+    /**
+     * @return {@code true} if the Cursor is at the start of the document, before the first token.
+     */
     public boolean atStart() {
         return index < 0;
+    }
+
+    /**
+     * @return {@code true} if the Cursor is at the end of the document, after the last token.
+     */
+    public boolean atEnd() {
+        return index >= tokens.size();
     }
 
     public int position() {
@@ -33,6 +43,10 @@ public class Cursor {
     }
 
     public boolean hasToken() {
+        return hasToken(index);
+    }
+
+    private boolean hasToken(int index) {
         return index >= 0 && index < tokens.size();
     }
 
@@ -141,17 +155,32 @@ public class Cursor {
         return cnt;
     }
 
+    /**
+     * Inserts a token at the current position, pushing the current token (if any) forwards.
+     * <br/>
+     * This method advances the cursor by one token (causing it to point at the initial token again).
+     * @param token the token to insert.
+     * @return {@code this}
+     */
     public Cursor add(PropertiesParser.Token token) {
+        if (index < 0)
+            index = 0;
+
         addToken(index++, token);
         return this;
     }
 
+    /**
+     * Inserts an EOL Token at the current position.
+     * @see #add(PropertiesParser.Token)
+     * @return {@code this}
+     */
     public Cursor addEol() {
         return add(PropertiesParser.Token.EOL);
     }
 
     private void addToken(int index, PropertiesParser.Token token) {
-        if (hasToken()) {
+        if (hasToken(index)) {
             tokens.add(index, token);
         } else {
             tokens.add(token);
