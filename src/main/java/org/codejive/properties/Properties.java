@@ -861,8 +861,11 @@ public class Properties extends AbstractMap<String, String> {
                 key = token.getText();
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
+                key = null;
             }
         }
+        if (key != null)
+            values.put(key, ""); // java.util.Properties does not support 'null' values. Store "" instead.
         return this;
     }
 

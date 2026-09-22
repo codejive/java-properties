@@ -713,6 +713,15 @@ public class TestProperties {
         assertThat(p.getProperty("foo")).isEqualTo("bar");
     }
 
+    @Test
+    void testEmptyValue() throws URISyntaxException, IOException {
+        Path testProps = getResource("/test-emptyvalue.properties");
+        Properties p = Properties.loadProperties(testProps);
+        java.util.Properties ju = new java.util.Properties();
+        ju.load(Files.newBufferedReader(testProps));
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         return Paths.get(getClass().getResource(name).toURI());
     }
