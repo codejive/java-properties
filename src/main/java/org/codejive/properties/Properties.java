@@ -8,12 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import org.codejive.properties.PropertiesParser.Token;
 
 /**
  * This class is a replacement for <code>java.util.Properties</code>, with the difference that it
@@ -134,7 +134,7 @@ public class Properties extends AbstractMap<String, String> {
      *     value are strings, including the keys in the default property list.
      */
     public Set<String> stringPropertyNames() {
-        return Collections.unmodifiableSet(flatten().keySet());
+        return Collections.unmodifiableSet(flattened().keySet());
     }
 
     /**
@@ -144,7 +144,7 @@ public class Properties extends AbstractMap<String, String> {
      */
     public void list(PrintStream out) {
         try {
-            flatten().store(out);
+            flattened().store(out);
         } catch (IOException e) {
             // Ignore any errors
         }
@@ -157,7 +157,7 @@ public class Properties extends AbstractMap<String, String> {
      */
     public void list(PrintWriter out) {
         try {
-            flatten().store(out);
+            flattened().store(out);
         } catch (IOException e) {
             // Ignore any errors
         }
@@ -230,6 +230,7 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public Set<Entry<String, String>> entrySet() {
+        if (tokens.isEmpty()) return Collections.emptySet();
         return new AbstractSet<Entry<String, String>>() {
             @Override
             public Iterator<Entry<String, String>> iterator() {
@@ -272,6 +273,7 @@ public class Properties extends AbstractMap<String, String> {
      * @return A set of raw key values
      */
     public Set<String> rawKeySet() {
+        if (tokens.isEmpty()) return Collections.emptySet();
         return tokens.stream()
                 .filter(t -> t.type == PropertiesParser.Type.KEY)
                 .map(PropertiesParser.Token::getRaw)
@@ -285,10 +287,10 @@ public class Properties extends AbstractMap<String, String> {
      * @return a collection of raw values.
      */
     public Collection<String> rawValues() {
-        return combined(tokens)
-                .filter(ts -> ts.get(0).type == PropertiesParser.Type.KEY)
-                .map(ts -> ts.get(2).getRaw())
-                .collect(Collectors.toList());
+        if (tokens.isEmpty()) return Collections.emptyList();
+        List<String> result = new ArrayList<>();
+        walkProperties((key, value) -> result.add(value != null ? value.getRaw() : ""));
+        return result;
     }
 
     /**
@@ -298,10 +300,40 @@ public class Properties extends AbstractMap<String, String> {
      * @return A set of raw key-value entries
      */
     public Set<Entry<String, String>> rawEntrySet() {
-        return combined(tokens)
-                .filter(ts -> ts.get(0).type == PropertiesParser.Type.KEY)
-                .map(ts -> new SimpleEntry<>(ts.get(0).getRaw(), ts.get(2).getRaw()))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (tokens.isEmpty()) return Collections.emptySet();
+        Set<Entry<String, String>> result = new LinkedHashSet<>();
+        walkProperties(
+                (key, value) ->
+                        result.add(
+                                new SimpleEntry<>(
+                                        key.getRaw(), value != null ? value.getRaw() : "")));
+        return result;
+    }
+
+    private void walkProperties(BiConsumer<Token, Token> func) {
+        if (tokens.isEmpty()) return;
+        Cursor c = Cursor.first(tokens);
+        while (c.hasToken()) {
+            if (c.isType(PropertiesParser.Type.KEY)) {
+                PropertiesParser.Token keyToken = c.token();
+                c.next();
+                if (c.isType(PropertiesParser.Type.SEPARATOR)) {
+                    c.next();
+                    if (c.isType(PropertiesParser.Type.VALUE)) {
+                        func.accept(keyToken, c.token());
+                        c.next();
+                    } else {
+                        // We're dealing with a value-less property
+                        func.accept(keyToken, null);
+                    }
+                } else {
+                    // We're dealing with a key-only property
+                    func.accept(keyToken, null);
+                }
+            } else {
+                c.next();
+            }
+        }
     }
 
     @Override
@@ -711,9 +743,7 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private static List<PropertiesParser.Token> escapeTokens(List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(
-                tokens,
-                ts -> Arrays.asList(escapeToken(ts.get(0)), ts.get(1), escapeToken(ts.get(2))));
+        return mapKeyValues(tokens, Properties::escapeToken, Properties::escapeToken);
     }
 
     private static PropertiesParser.Token escapeToken(PropertiesParser.Token token) {
@@ -738,9 +768,7 @@ public class Properties extends AbstractMap<String, String> {
 
     private static List<PropertiesParser.Token> unescapeTokens(
             List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(
-                tokens,
-                ts -> Arrays.asList(unescapeToken(ts.get(0)), ts.get(1), unescapeToken(ts.get(2))));
+        return mapKeyValues(tokens, Properties::unescapeToken, Properties::unescapeToken);
     }
 
     private static PropertiesParser.Token unescapeToken(PropertiesParser.Token token) {
@@ -753,44 +781,20 @@ public class Properties extends AbstractMap<String, String> {
 
     private static List<PropertiesParser.Token> mapKeyValues(
             List<PropertiesParser.Token> tokens,
-            Function<List<PropertiesParser.Token>, List<PropertiesParser.Token>> mapper) {
-        return combined(tokens)
+            Function<PropertiesParser.Token, PropertiesParser.Token> keyMapper,
+            Function<PropertiesParser.Token, PropertiesParser.Token> valueMapper) {
+        return tokens.stream()
                 .map(
-                        ts -> {
-                            if (ts.get(0).type == PropertiesParser.Type.KEY) {
-                                return mapper.apply(ts);
+                        tk -> {
+                            if (tk.type == PropertiesParser.Type.KEY) {
+                                return keyMapper.apply(tk);
+                            } else if (tk.type == PropertiesParser.Type.VALUE) {
+                                return valueMapper.apply(tk);
                             } else {
-                                return ts;
+                                return tk;
                             }
                         })
-                .flatMap(Collection::stream)
                 .collect(Collectors.toList());
-    }
-
-    private static Stream<List<PropertiesParser.Token>> combined(
-            List<PropertiesParser.Token> tokens) {
-        Iterator<List<PropertiesParser.Token>> iter =
-                new Iterator<List<PropertiesParser.Token>>() {
-                    Iterator<PropertiesParser.Token> i = tokens.iterator();
-
-                    @Override
-                    public boolean hasNext() {
-                        return i.hasNext();
-                    }
-
-                    @Override
-                    public List<PropertiesParser.Token> next() {
-                        PropertiesParser.Token t = i.next();
-                        if (t.type == PropertiesParser.Type.KEY) {
-                            return Arrays.asList(t, i.next(), i.next());
-                        } else {
-                            return Collections.singletonList(t);
-                        }
-                    }
-                };
-
-        return StreamSupport.stream(
-                Spliterators.spliterator(iter, tokens.size(), Spliterator.SORTED), false);
     }
 
     /**
@@ -865,9 +869,21 @@ public class Properties extends AbstractMap<String, String> {
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
                 key = token.getText();
+            }
+            if (token.type == PropertiesParser.Type.SEPARATOR && key == null) {
+                // In case if a name-less property
+                key = "";
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
+                key = null;
+            } else if (token.isEol() && key != null) {
+                // In case of value-less properties
+                values.put(key, "");
             }
+        }
+        // In case of the last property being value-less
+        if (key != null) {
+            values.put(key, "");
         }
         return this;
     }
