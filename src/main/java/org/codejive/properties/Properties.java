@@ -393,8 +393,14 @@ public class Properties extends AbstractMap<String, String> {
         while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
             pos.prev();
         }
-        // Make sure we're either at the start or we've found a VALUE
-        validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
+        // Make sure we're either at the start or we've found a property
+        validate(
+                pos.atStart()
+                        || pos.isType(
+                                PropertiesParser.Type.VALUE,
+                                PropertiesParser.Type.SEPARATOR,
+                                PropertiesParser.Type.KEY),
+                pos);
         // Add a newline whitespace token if necessary
         if (pos.hasToken()) {
             pos.next();
