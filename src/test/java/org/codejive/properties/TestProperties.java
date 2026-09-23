@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.*;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -400,14 +400,14 @@ public class TestProperties {
     void testLf() throws IOException, URISyntaxException {
         Path f = getResource("/test.properties");
         Properties p = Properties.loadProperties(f);
-        assertThat(p.determineNewline()).isEqualTo("\n");
+        assertThat(p.determineEol()).isEqualTo(Cursor.EolType.LF);
     }
 
     @Test
     void testCrLf() throws IOException, URISyntaxException {
         Path f = getResource("/testcrlf.properties");
         Properties p = Properties.loadProperties(f);
-        assertThat(p.determineNewline()).isEqualTo("\r\n");
+        assertThat(p.determineEol()).isEqualTo(Cursor.EolType.CRLF);
     }
 
     @Test
@@ -544,7 +544,7 @@ public class TestProperties {
 
     @Test
     void testPut() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.put("one", "simple");
         p.put("two", "value containing spaces");
         p.put("three", "and escapes\n\t\r\f");
@@ -635,7 +635,7 @@ public class TestProperties {
 
     @Test
     void testSetProperty() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.setProperty("one", "simple", "! comment3");
         p.setProperty("two", "value containing spaces");
         p.setProperty(
@@ -654,7 +654,7 @@ public class TestProperties {
 
     @Test
     void testPutRaw() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.putRaw("one", "simple");
         p.putRaw("two", "value containing spaces");
         p.putRaw("three", "and escapes\\n\\t\\r\\f");
@@ -746,7 +746,7 @@ public class TestProperties {
     @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceFirst() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.put("one", "simple");
         p.put("two", "value containing spaces");
         p.put("three", "and escapes\n\t\r\f");
@@ -760,7 +760,7 @@ public class TestProperties {
     @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceMiddle() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.put("one", "simple");
         p.put("two", "value containing spaces");
         p.put("three", "and escapes\n\t\r\f");
@@ -774,7 +774,7 @@ public class TestProperties {
     @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceLast() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.put("one", "simple");
         p.put("two", "value containing spaces");
         p.put("three", "and escapes\n\t\r\f");
@@ -887,7 +887,7 @@ public class TestProperties {
 
     @Test
     void testPutNull() {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         assertThatThrownBy(() -> p.put("one", null)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> p.setProperty("one", null))
                 .isInstanceOf(NullPointerException.class);
@@ -898,7 +898,7 @@ public class TestProperties {
 
     @Test
     void testPutUnicode() throws IOException, URISyntaxException {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         p.putRaw("encoded", "\\u0627\\u0644\\u0623\\u0644\\u0628\\u0627\\u0646\\u064a\\u0629");
         p.put("text", "\u0627\u0644\u0623\u0644\u0628\u0627\u0646\u064a\u0629");
         StringWriter sw = new StringWriter();
@@ -1140,11 +1140,23 @@ public class TestProperties {
 
     @Test
     void testPutAll() {
-        Properties p = new Properties();
+        Properties p = new Properties(Cursor.EolType.LF);
         java.util.Properties ju = new java.util.Properties();
         ju.setProperty("foo", "bar");
         p.putAll(ju);
         assertThat(p.getProperty("foo")).isEqualTo("bar");
+    }
+
+    @Test
+    void testPutCrLf() throws IOException {
+        final String given = "first=line\r\n# trailer";
+        final String expected = "first=line\r\nsecond=line\r\n# trailer";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("second", "line");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(expected);
     }
 
     private Path getResource(String name) throws URISyntaxException {
