@@ -445,12 +445,24 @@ public class Properties extends AbstractMap<String, String> {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
             // skipping any header comments
-            pos = skipHeaderCommentLines();
-            if (pos.position() > 0) {
+            // (*) = we'll always skip past the final comment's EOL
+            pos = determineAddNewInsertionPoint();
+            if (!pos.atStart()) {
                 // We have to make sure there are at least 2 EOLs after the last comment
-                int eols = pos.prevCount(t -> t.isEol());
-                for (int i = 0; i < 2 - eols; i++) {
-                    pos.addEol();
+                if (pos.atEnd()) {
+                    Cursor pp = last();
+                    if (pp.isType(PropertiesParser.Type.COMMENT)) {
+                        // If the last token is a comment, we're short two EOLs
+                        pos.addEol();
+                        pos.addEol();
+                    } else if (pp.isEol()) {
+                        // If the last element is an EOL we still need one (*)
+                        pos.addEol();
+                    }
+                } else if (pos.isEol()) {
+                    // If the current element is an EOL we know there are at least 2 (*),
+                    // so we can simply move past it
+                    pos.next();
                 }
             }
         }
@@ -961,7 +973,7 @@ public class Properties extends AbstractMap<String, String> {
     public void store(Writer writer, String... comment) throws IOException {
         Cursor pos = first();
         if (comment.length > 0) {
-            pos = skipHeaderCommentLines();
+            pos = determineStoreInsertionPoint();
             String nl = determineNewline();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
@@ -1008,6 +1020,23 @@ public class Properties extends AbstractMap<String, String> {
         }
     }
 
+    private Cursor determineStoreInsertionPoint() {
+        Cursor pos = skipHeaderCommentLines();
+        if (pos.isType(PropertiesParser.Type.KEY)) {
+            // We found a comment attached to a property, not a header comment
+            pos = first();
+        } else {
+            // Skip any following empty lines
+            pos.nextWhile(PropertiesParser.Token::isEol);
+        }
+        return pos;
+    }
+
+    private Cursor determineAddNewInsertionPoint() {
+        Cursor pos = skipHeaderCommentLines();
+        return skipHome(pos);
+    }
+
     private Cursor skipHeaderCommentLines() {
         Cursor pos = first();
         // Skip a single following whitespace if it is NOT an EOL token
@@ -1019,14 +1048,15 @@ public class Properties extends AbstractMap<String, String> {
             // Skip a single following whitespace if it is NOT an EOL token
             pos.nextIf(PropertiesParser.Token::isWs);
         }
-        if (pos.isType(PropertiesParser.Type.KEY)) {
-            // We found a comment attached to a property, not a header comment
-            return first();
-        } else {
-            // Skip any following empty lines
-            pos.nextWhile(PropertiesParser.Token::isEol);
-            return pos;
+        return pos;
+    }
+
+    // Skips to start of line
+    private Cursor skipHome(Cursor pos) {
+        if (!pos.atStart() && pos.copy().prev().isWhitespace()) {
+            pos.prev();
         }
+        return pos;
     }
 
     Cursor index(int index) {
