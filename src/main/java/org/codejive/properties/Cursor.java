@@ -146,9 +146,9 @@ public class Cursor {
     }
 
     /**
-     * Inserts a token at the current position, pushing the current token (if any) forwards.
+     * Inserts a token at the current position, shifting the current token (if any) and any subsequent tokens to the right (adds one to their indices).
      * <br/>
-     * This method advances the cursor by one token (causing it to point at the initial token again).
+     * This method advances the cursor by one, such that the cursor state remains unchanged (pointing to the same token as before).
      * @param token the token to insert.
      * @return {@code this}
      */
