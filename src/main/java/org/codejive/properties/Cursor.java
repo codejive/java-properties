@@ -145,12 +145,24 @@ public class Cursor {
         return cnt;
     }
 
+    /**
+     * Inserts a token at the current position, pushing the current token (if any) forwards.
+     * <br/>
+     * This method advances the cursor by one token (causing it to point at the initial token again).
+     * @param token the token to insert.
+     * @return {@code this}
+     */
     public Cursor add(PropertiesParser.Token token) {
         index = Math.max(index, 0);
         addToken(index++, token);
         return this;
     }
 
+    /**
+     * Inserts an EOL Token at the current position.
+     * @see #add(PropertiesParser.Token)
+     * @return {@code this}
+     */
     public Cursor addEol() {
         return add(PropertiesParser.Token.EOL);
     }
