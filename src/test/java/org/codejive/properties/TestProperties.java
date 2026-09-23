@@ -158,6 +158,15 @@ public class TestProperties {
     }
 
     @Test
+    void testStoreTest2() throws IOException, URISyntaxException {
+        Path f = getResource("/test2.properties");
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(f));
+    }
+
+    @Test
     void testLf() throws IOException, URISyntaxException {
         Path f = getResource("/test.properties");
         Properties p = Properties.loadProperties(f);
@@ -479,6 +488,26 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-putnew.properties")));
+    }
+
+    @Test
+    void testPutNewTest2() throws IOException, URISyntaxException {
+        Path f = getResource("/test2.properties");
+        Properties p = Properties.loadProperties(f);
+        p.put("five", "5");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test2-putnew.properties")));
+    }
+
+    @Test
+    void testPutNewTest3() throws IOException, URISyntaxException {
+        Path f = getResource("/test3.properties");
+        Properties p = Properties.loadProperties(f);
+        p.put("five", "5");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test3-putnew.properties")));
     }
 
     @Test
