@@ -545,6 +545,42 @@ public class TestProperties {
     }
 
     @Test
+    void testPutFirstWithHeader1Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader2Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader3Eol() throws IOException {
+        String expected = "# A header comment\n\n\nfirst=dummy";
+        try (StringReader sr = new StringReader("# A header comment\n\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString()).isEqualTo(expected);
+        }
+    }
+
+    @Test
     void testPutNull() throws IOException, URISyntaxException {
         Properties p = new Properties();
         assertThatThrownBy(

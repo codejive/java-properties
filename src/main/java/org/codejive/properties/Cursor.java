@@ -24,8 +24,18 @@ public class Cursor {
         this.index = index;
     }
 
+    /**
+     * @return {@code true} if the Cursor is at the start of the document, before the first token.
+     */
     public boolean atStart() {
         return index < 0;
+    }
+
+    /**
+     * @return {@code true} if the Cursor is at the end of the document, after the last token.
+     */
+    public boolean atEnd() {
+        return index >= tokens.size();
     }
 
     public int position() {
