@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.*;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -537,9 +538,7 @@ public class TestProperties {
     void testSetCommentNonExistent() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         assertThatThrownBy(
-                        () -> {
-                            p.setComment("wrong", "dummy");
-                        })
+                        () -> p.setComment("wrong", "dummy"))
                 .isInstanceOf(NoSuchElementException.class);
     }
 
@@ -744,6 +743,7 @@ public class TestProperties {
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-putraw.properties")));
     }
 
+    @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceFirst() throws IOException, URISyntaxException {
         Properties p = new Properties();
@@ -757,6 +757,7 @@ public class TestProperties {
                 .isEqualTo(readAll(getResource("/test-putreplacefirst.properties")));
     }
 
+    @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceMiddle() throws IOException, URISyntaxException {
         Properties p = new Properties();
@@ -770,6 +771,7 @@ public class TestProperties {
                 .isEqualTo(readAll(getResource("/test-putreplacemiddle.properties")));
     }
 
+    @SuppressWarnings("OverwrittenKey") // assigning the same key twice is the point of this test
     @Test
     void testPutReplaceLast() throws IOException, URISyntaxException {
         Properties p = new Properties();
@@ -848,27 +850,19 @@ public class TestProperties {
     }
 
     @Test
-    void testPutNull() throws IOException, URISyntaxException {
+    void testPutNull() {
         Properties p = new Properties();
         assertThatThrownBy(
-                        () -> {
-                            p.put("one", null);
-                        })
+                        () -> p.put("one", null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
-                        () -> {
-                            p.setProperty("one", null);
-                        })
+                        () -> p.setProperty("one", null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
-                        () -> {
-                            p.put(null, "value");
-                        })
+                        () -> p.put(null, "value"))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
-                        () -> {
-                            p.setProperty(null, "value");
-                        })
+                        () -> p.setProperty(null, "value"))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -1017,7 +1011,7 @@ public class TestProperties {
     }
 
     @Test
-    void testInteropPutLoad() throws IOException, URISyntaxException {
+    void testInteropPutLoad() throws IOException {
         java.util.Properties p = new java.util.Properties();
         p.put("one", "simple");
         p.put("two", "value containing spaces");
@@ -1124,7 +1118,11 @@ public class TestProperties {
     }
 
     private Path getResource(String name) throws URISyntaxException {
-        return Paths.get(getClass().getResource(name).toURI());
+        URL resource = getClass().getResource(name);
+        if (resource == null)
+            throw new IllegalArgumentException("resource '" + name + "' does not exist.");
+
+        return Paths.get(resource.toURI());
     }
 
     private String readAll(Path f) throws IOException {
