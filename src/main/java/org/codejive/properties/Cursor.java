@@ -33,7 +33,11 @@ public class Cursor {
     }
 
     public boolean hasToken() {
-        return index >= 0 && index < tokens.size();
+        return hasToken(index);
+    }
+
+    private boolean hasToken(int idx) {
+        return idx >= 0 && idx < tokens.size();
     }
 
     public PropertiesParser.Token token() {
@@ -142,6 +146,7 @@ public class Cursor {
     }
 
     public Cursor add(PropertiesParser.Token token) {
+        index = Math.max(index, 0);
         addToken(index++, token);
         return this;
     }
@@ -151,7 +156,7 @@ public class Cursor {
     }
 
     private void addToken(int index, PropertiesParser.Token token) {
-        if (hasToken()) {
+        if (hasToken(index)) {
             tokens.add(index, token);
         } else {
             tokens.add(token);
