@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.*;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -795,6 +796,6 @@ public class TestProperties {
     }
 
     private String readAll(Path f) throws IOException {
-        return new String(Files.readAllBytes(f));
+        return new String(Files.readAllBytes(f), StandardCharsets.UTF_8);
     }
 }
