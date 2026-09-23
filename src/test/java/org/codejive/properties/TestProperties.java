@@ -538,8 +538,7 @@ public class TestProperties {
     @Test
     void testSetCommentNonExistent() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
-        assertThatThrownBy(
-                        () -> p.setComment("wrong", "dummy"))
+        assertThatThrownBy(() -> p.setComment("wrong", "dummy"))
                 .isInstanceOf(NoSuchElementException.class);
     }
 
@@ -839,7 +838,7 @@ public class TestProperties {
     }
 
     @Test
-    void testPutFirstWithHeader() throws IOException, URISyntaxException {
+    void testPutFirstWithHeader0Eol() throws IOException, URISyntaxException {
         try (StringReader sr = new StringReader("# A header comment")) {
             Properties p = Properties.loadProperties(sr);
             p.put("first", "dummy");
@@ -851,19 +850,49 @@ public class TestProperties {
     }
 
     @Test
+    void testPutFirstWithHeader1Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader2Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader.properties")));
+        }
+    }
+
+    @Test
+    void testPutFirstWithHeader3Eol() throws IOException, URISyntaxException {
+        try (StringReader sr = new StringReader("# A header comment\n\n\n")) {
+            Properties p = Properties.loadProperties(sr);
+            p.put("first", "dummy");
+            StringWriter sw = new StringWriter();
+            p.store(sw);
+            assertThat(sw.toString())
+                    .isEqualTo(readAll(getResource("/test-putfirstwithheader3.properties")));
+        }
+    }
+
+    @Test
     void testPutNull() {
         Properties p = new Properties();
-        assertThatThrownBy(
-                        () -> p.put("one", null))
+        assertThatThrownBy(() -> p.put("one", null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> p.setProperty("one", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> p.setProperty("one", null))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> p.put(null, "value"))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> p.setProperty(null, "value"))
+        assertThatThrownBy(() -> p.put(null, "value")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> p.setProperty(null, "value"))
                 .isInstanceOf(NullPointerException.class);
     }
 

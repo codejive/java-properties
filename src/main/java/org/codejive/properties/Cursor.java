@@ -28,6 +28,10 @@ public class Cursor {
         return index < 0;
     }
 
+    public boolean atEnd() {
+        return index >= tokens.size();
+    }
+
     public int position() {
         return index;
     }
