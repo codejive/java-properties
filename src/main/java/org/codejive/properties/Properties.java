@@ -404,7 +404,11 @@ public class Properties extends AbstractMap<String, String> {
         // Add a newline whitespace token if necessary
         if (pos.hasToken()) {
             pos.next();
-            pos.addEol();
+            if (pos.isEol()) {
+                pos.next().addEol().prev();
+            } else {
+                pos.addEol();
+            }
         } else {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
