@@ -50,9 +50,6 @@ public class PropertiesParser {
         final String raw;
         final String text;
 
-        public static final Token EOL =
-                new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n");
-
         /**
          * Constructor for tokens where the raw value and the text value are exactly the same.
          *

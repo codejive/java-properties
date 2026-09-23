@@ -26,26 +26,54 @@ public class Properties extends AbstractMap<String, String> {
     private final LinkedHashMap<String, String> values;
     private final List<PropertiesParser.Token> tokens;
     private final Properties defaults;
+    private Cursor.EolType eolType;
 
     public Properties() {
         this((Properties) null);
+    }
+
+    public Properties(Cursor.EolType eolType) {
+        this((Properties) null);
+        this.eolType = eolType;
     }
 
     public Properties(Properties defaults) {
         this.defaults = defaults;
         values = new LinkedHashMap<>();
         tokens = new ArrayList<>();
+        eolType = defaults != null ? defaults.eolType : Cursor.EolType.SYSTEM;
     }
 
     private Properties(Properties defaults, List<PropertiesParser.Token> tokens) {
         this.defaults = defaults;
         values = new LinkedHashMap<>();
         this.tokens = tokens;
+        eolType = defaults != null ? defaults.eolType : Cursor.EolType.SYSTEM;
         rawEntrySet()
                 .forEach(
                         e -> {
                             values.put(unescape(e.getKey()), unescape(e.getValue()));
                         });
+    }
+
+    /**
+     * Returns the EOL type currently used by this properties object. This is what will be used when
+     * adding new lines to the properties object.
+     *
+     * @return the EOL type, LF, CRLF or SYSTEM
+     */
+    Cursor.EolType getEolType() {
+        return eolType;
+    }
+
+    /**
+     * Sets the EOL type to be used by this properties object. The new value will only be applied to
+     * future lines added to the properties object.
+     *
+     * @param eolType the EOL type, LF, CRLF or SYSTEM
+     */
+    void setEolType(Cursor.EolType eolType) {
+        this.eolType = eolType;
     }
 
     /**
@@ -216,7 +244,7 @@ public class Properties extends AbstractMap<String, String> {
      * @return a <code>Properties</code> object
      */
     public Properties flattened() {
-        Properties result = new Properties();
+        Properties result = new Properties(eolType);
         flatten(result);
         return result;
     }
@@ -437,9 +465,9 @@ public class Properties extends AbstractMap<String, String> {
         if (pos.hasToken()) {
             pos.next();
             if (pos.isEol()) {
-                pos.next().addEol().prev();
+                pos.next().addEol(eolType).prev();
             } else {
-                pos.addEol();
+                pos.addEol(eolType);
             }
         } else {
             // We're at the start, meaning there are no properties yet,
@@ -453,11 +481,11 @@ public class Properties extends AbstractMap<String, String> {
                     Cursor pp = last();
                     if (pp.isType(PropertiesParser.Type.COMMENT)) {
                         // If the last token is a comment, we're short two EOLs
-                        pos.addEol();
-                        pos.addEol();
+                        pos.addEol(eolType);
+                        pos.addEol(eolType);
                     } else if (pp.isEol()) {
                         // If the last element is an EOL we still need one (*)
-                        pos.addEol();
+                        pos.addEol(eolType);
                     }
                 } else if (pos.isEol()) {
                     // If the current element is an EOL we know there are at least 2 (*),
@@ -590,7 +618,7 @@ public class Properties extends AbstractMap<String, String> {
         // Add any additional lines (when there are more new lines than old ones)
         for (int j = i; j < newcs.size(); j++) {
             pos.add(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, newcs.get(j)));
-            pos.addEol();
+            pos.addEol(eolType);
         }
 
         return pos;
@@ -877,6 +905,7 @@ public class Properties extends AbstractMap<String, String> {
 
     private Properties load(List<PropertiesParser.Token> ts) {
         tokens.addAll(ts);
+        eolType = determineEol();
         String key = null;
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
@@ -974,15 +1003,14 @@ public class Properties extends AbstractMap<String, String> {
         Cursor pos = first();
         if (comment.length > 0) {
             pos = determineStoreInsertionPoint();
-            String nl = determineNewline();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
                 writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
-                writer.write(nl);
+                writer.write(eolType.text);
             }
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
-            writer.write(nl);
+            writer.write(eolType.text);
         }
         while (pos.hasToken()) {
             writer.write(pos.raw());
@@ -999,7 +1027,7 @@ public class Properties extends AbstractMap<String, String> {
      *
      * @return A string containing the line ending to use
      */
-    String determineNewline() {
+    Cursor.EolType determineEol() {
         boolean lf = false;
         boolean crlf = false;
         for (PropertiesParser.Token token : tokens) {
@@ -1012,11 +1040,11 @@ public class Properties extends AbstractMap<String, String> {
             }
         }
         if (lf && crlf) {
-            return System.lineSeparator();
+            return Cursor.EolType.SYSTEM;
         } else if (crlf) {
-            return "\r\n";
+            return Cursor.EolType.CRLF;
         } else {
-            return "\n";
+            return Cursor.EolType.LF;
         }
     }
 
