@@ -511,6 +511,28 @@ public class TestProperties {
     }
 
     @Test
+    void testPutNewAfterKey() throws IOException, URISyntaxException {
+        Path f = getResource("/test-keyatend.properties");
+        Properties p = Properties.loadProperties(f);
+        p.put("five", "5");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString())
+                .isEqualTo(readAll(getResource("/test-keyatend-putnew.properties")));
+    }
+
+    @Test
+    void testPutNewAfterSeparator() throws IOException, URISyntaxException {
+        Path f = getResource("/test-separatoratend.properties");
+        Properties p = Properties.loadProperties(f);
+        p.put("five", "5");
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString())
+                .isEqualTo(readAll(getResource("/test-separatoratend-putnew.properties")));
+    }
+
+    @Test
     void testPutFirstWithHeader() throws IOException, URISyntaxException {
         try (StringReader sr = new StringReader("# A header comment")) {
             Properties p = Properties.loadProperties(sr);
