@@ -790,6 +790,54 @@ public class TestProperties {
         assertThat(p.getProperty("foo")).isEqualTo("bar");
     }
 
+    @Test
+    void testPutAfterEmptyValue() throws IOException {
+        final String given = "firstline=\n" +
+                "secondline=";
+        final String expected = "firstline=\n" +
+                "secondline=\n" +
+                "thirdline=";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        java.util.Properties ju = new java.util.Properties();
+        ju.load(new StringReader(given));
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify put
+        p.put("thirdline", "");
+        ju.put("thirdline", "");
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify store
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(expected);
+    }
+
+    @Test
+    void testPutAfterMissingSeparator() throws IOException {
+        final String given = "firstline\n" +
+                "secondline";
+        final String expected = "firstline\n" +
+                "secondline\n" +
+                "thirdline=";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        java.util.Properties ju = new java.util.Properties();
+        ju.load(new StringReader(given));
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify put
+        p.put("thirdline", "");
+        ju.put("thirdline", "");
+        assertThat(p.asJUProperties()).isEqualTo(ju);
+
+        // verify store
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(expected);
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         return Paths.get(getClass().getResource(name).toURI());
     }

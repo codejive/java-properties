@@ -864,11 +864,16 @@ public class Properties extends AbstractMap<String, String> {
         String key = null;
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
+                if (key != null)
+                    values.put(key, "");
                 key = token.getText();
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
+                key = null;
             }
         }
+        if (key != null)
+            values.put(key, "");
         return this;
     }
 
