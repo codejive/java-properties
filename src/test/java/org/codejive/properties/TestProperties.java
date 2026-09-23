@@ -62,6 +62,7 @@ public class TestProperties {
                         new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
     }
 
+    @Test
     void testLoadCrLf() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/testcrlf.properties"));
         assertThat(p).size().isEqualTo(7);
@@ -87,7 +88,7 @@ public class TestProperties {
                         "and escapes\\n\\t\\r\\f",
                         "everywhere  ",
                         "value",
-                        "one \\\n    two  \\\n\tthree",
+                        "one \\\r\n    two  \\\r\n\tthree",
                         "\\u1234\u1234");
         assertThat(p.entrySet())
                 .containsExactly(
@@ -105,7 +106,8 @@ public class TestProperties {
                         new AbstractMap.SimpleEntry<>("three", "and escapes\\n\\t\\r\\f"),
                         new AbstractMap.SimpleEntry<>("\\ with\\ spaces", "everywhere  "),
                         new AbstractMap.SimpleEntry<>("altsep", "value"),
-                        new AbstractMap.SimpleEntry<>("multiline", "one \\\n    two  \\\n\tthree"),
+                        new AbstractMap.SimpleEntry<>(
+                                "multiline", "one \\\r\n    two  \\\r\n\tthree"),
                         new AbstractMap.SimpleEntry<>("key.4", "\\u1234\u1234"));
     }
 
@@ -143,6 +145,30 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw, "A header line");
         assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-storeheader.properties")));
+    }
+
+    @Test
+    void testStoreHeaderCrLf() throws IOException, URISyntaxException {
+        Path f = getResource("/testcrlf.properties");
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw, "A header line");
+        assertThat(sw.toString())
+                .isEqualTo(readAll(getResource("/testcrlf-storeheader.properties")));
+    }
+
+    @Test
+    void testLf() throws IOException, URISyntaxException {
+        Path f = getResource("/test.properties");
+        Properties p = Properties.loadProperties(f);
+        assertThat(p.determineNewline()).isEqualTo("\n");
+    }
+
+    @Test
+    void testCrLf() throws IOException, URISyntaxException {
+        Path f = getResource("/testcrlf.properties");
+        Properties p = Properties.loadProperties(f);
+        assertThat(p.determineNewline()).isEqualTo("\r\n");
     }
 
     @Test

@@ -965,14 +965,14 @@ public class Properties extends AbstractMap<String, String> {
      *
      * @return A string containing the line ending to use
      */
-    private String determineNewline() {
+    String determineNewline() {
         boolean lf = false;
         boolean crlf = false;
         for (PropertiesParser.Token token : tokens) {
-            if (token.isWs()) {
-                if (token.raw.endsWith("/r/n")) {
+            if (token.isEol()) {
+                if (token.raw.endsWith("\r\n")) {
                     crlf = true;
-                } else if (token.raw.endsWith("/n")) {
+                } else if (token.raw.endsWith("\n")) {
                     lf = true;
                 }
             }
@@ -980,7 +980,7 @@ public class Properties extends AbstractMap<String, String> {
         if (lf && crlf) {
             return System.lineSeparator();
         } else if (crlf) {
-            return "/r/n";
+            return "\r\n";
         } else {
             return "\n";
         }
