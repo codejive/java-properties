@@ -169,6 +169,16 @@ public class Cursor {
     }
 
     /**
+     * Skips to the start of the line.
+     *
+     * @return a Cursor pointing to the start of the line
+     */
+    public Cursor home() {
+        prevWhile(tk -> !tk.isEol());
+        return this;
+    }
+
+    /**
      * Inserts a token at the current position, shifting the current token (if any) and any
      * subsequent tokens to the right (adds one to their indices). <br>
      * This method advances the cursor by one, such that the cursor state remains unchanged

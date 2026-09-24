@@ -455,22 +455,9 @@ public class Properties extends AbstractMap<String, String> {
 
     // Add new tokens to the end of the list of tokens
     private Cursor addNewKeyValue(String rawKey, String key, String rawValue, String value) {
-        // Track back from end until we encounter the last VALUE token (if any)
-        Cursor pos = last();
-        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
-            pos.prev();
-        }
-        // Make sure we're either at the start or we've found a property
-        validate(
-                pos.atStart()
-                        || pos.isType(
-                                PropertiesParser.Type.VALUE,
-                                PropertiesParser.Type.SEPARATOR,
-                                PropertiesParser.Type.KEY),
-                pos);
+        Cursor pos = afterLastProperty();
         // Add a newline whitespace token if necessary
-        if (pos.hasToken()) {
-            pos.next();
+        if (!pos.atStart()) {
             if (pos.isEol()) {
                 pos.next().addEol(eolType).prev();
             } else {
@@ -481,7 +468,7 @@ public class Properties extends AbstractMap<String, String> {
             // but there might be comments, so we move forward again,
             // skipping any header comments
             // (*) = we'll always skip past the final comment's EOL
-            pos = determineAddNewInsertionPoint();
+            pos = afterHeader();
             if (!pos.atStart()) {
                 // We have to make sure there are at least 2 EOLs after the last comment
                 if (pos.atEnd()) {
@@ -1007,9 +994,13 @@ public class Properties extends AbstractMap<String, String> {
      * @throws IOException Thrown when any IO error occurs during operation
      */
     public void store(Writer writer, String... comment) throws IOException {
-        Cursor pos = first();
+        Cursor pos;
         if (comment.length > 0) {
-            pos = determineStoreInsertionPoint();
+            pos = afterHeader();
+            if (!pos.atStart()) {
+                // Skip any following empty lines
+                pos.nextWhile(PropertiesParser.Token::isEol);
+            }
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
                 writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
@@ -1018,6 +1009,8 @@ public class Properties extends AbstractMap<String, String> {
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
             writer.write(eolType.text);
+        } else {
+            pos = first();
         }
         while (pos.hasToken()) {
             writer.write(pos.raw());
@@ -1055,61 +1048,147 @@ public class Properties extends AbstractMap<String, String> {
         }
     }
 
-    private Cursor determineStoreInsertionPoint() {
-        Cursor pos = skipHeaderCommentLines();
-        if (pos.isType(PropertiesParser.Type.KEY)) {
-            // We found a comment attached to a property, not a header comment
-            pos = first();
-        } else {
-            // Skip any following empty lines
-            pos.nextWhile(PropertiesParser.Token::isEol);
-        }
-        return pos;
-    }
-
-    private Cursor determineAddNewInsertionPoint() {
-        Cursor pos = skipHeaderCommentLines();
-        return skipHome(pos);
-    }
-
-    private Cursor skipHeaderCommentLines() {
-        Cursor pos = first();
-        // Skip a single following whitespace if it is NOT an EOL token
-        pos.nextIf(PropertiesParser.Token::isWs);
-        // Skip all consecutive comments
-        while (pos.nextIf(PropertiesParser.Type.COMMENT)) {
-            // Skip a single following whitespace if it IS an EOL token
-            pos.nextIf(PropertiesParser.Token::isEol);
-            // Skip a single following whitespace if it is NOT an EOL token
-            pos.nextIf(PropertiesParser.Token::isWs);
-        }
-        return pos;
-    }
-
-    // Skips to start of line
-    private Cursor skipHome(Cursor pos) {
-        if (!pos.atStart() && pos.copy().prev().isWhitespace()) {
-            pos.prev();
-        }
-        return pos;
-    }
-
     Cursor index(int index) {
         return Cursor.index(tokens, index);
     }
 
     /**
-     * @return a Cursor pointing to the first token, or to {@code -1} if no tokens have been loaded.
+     * @return a Cursor pointing to the first token, or to {@code -1} if thw `Properties` object is
+     *     empty.
      */
     public Cursor first() {
         return Cursor.first(tokens);
     }
 
     /**
-     * @return a Cursor pointing to the last token, or to {@code -1} if no tokens have been loaded.
+     * @return a Cursor pointing to the last token, or to {@code -1} if thw `Properties` object is
+     *     empty.
      */
     public Cursor last() {
         return Cursor.last(tokens);
+    }
+
+    /**
+     * Returns a Cursor pointing to the position right before the property with the given key. If no
+     * such property exists, {@code null} will be returned. If the property was found the position
+     * will take into account any leading whitespace and will be positioned at the start of the
+     * line.
+     *
+     * @param key The name of property to look for
+     * @return a Cursor pointing to the right position or {@code null} if not found
+     */
+    public Cursor beforeProperty(String key) {
+        Cursor pos =
+                first().nextWhile(
+                                tk ->
+                                        tk.getType() == PropertiesParser.Type.KEY
+                                                && !tk.getText().equals(key));
+        if (pos.atEnd()) {
+            return null;
+        } else {
+            return pos.home();
+        }
+    }
+
+    /**
+     * Returns a Cursor pointing to the position right after the property with the given key. If no
+     * such property exists, {@code null} will be returned. If the property was found, the position
+     * will be at the start of the next line, if it exists, if not it will be at the end.
+     *
+     * @param key The name of property to look for
+     * @return a Cursor pointing to the right position or {@code null} if not found
+     */
+    public Cursor afterProperty(String key) {
+        Cursor pos =
+                last().prevWhile(
+                                tk ->
+                                        tk.getType() == PropertiesParser.Type.KEY
+                                                && !tk.getText().equals(key));
+        if (pos.atStart()) {
+            return null;
+        } else {
+            if (pos.next().isEol()) {
+                pos.next();
+            }
+            return pos;
+        }
+    }
+
+    /**
+     * Returns a Cursor pointing to the position right before the first property, or to {@code -1}
+     * if the `Properties` object is empty.
+     *
+     * @return a Cursor pointing to the right position or {@code -1} if not found
+     */
+    public Cursor beforeFirstProperty() {
+        Cursor pos = first();
+        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
+            pos.next();
+        }
+        // Make sure we're either at the end or we've found a property
+        validate(
+                pos.atEnd()
+                        || pos.isType(
+                                PropertiesParser.Type.VALUE,
+                                PropertiesParser.Type.SEPARATOR,
+                                PropertiesParser.Type.KEY),
+                pos);
+        if (!pos.atEnd()) {
+            pos.prev();
+        }
+        return pos;
+    }
+
+    /**
+     * Returns a Cursor pointing to the position past the last property, or to {@code -1} if the
+     * `Properties` object is empty.
+     *
+     * @return a Cursor pointing to the right position or {@code -1} if not found
+     */
+    public Cursor afterLastProperty() {
+        // Track back from end until we encounter the last VALUE token (if any)
+        Cursor pos = last();
+        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
+            pos.prev();
+        }
+        // Make sure we're either at the start or we've found a property
+        validate(
+                pos.atStart()
+                        || pos.isType(
+                                PropertiesParser.Type.VALUE,
+                                PropertiesParser.Type.SEPARATOR,
+                                PropertiesParser.Type.KEY),
+                pos);
+        if (!pos.atStart()) {
+            pos.next();
+        }
+        return pos;
+    }
+
+    /**
+     * Returns a Cursor pointing to the position right after the last comment in the header. If no
+     * header comments are found, the cursor will point to the start of the file.
+     *
+     * @return a Cursor pointing to the right position
+     */
+    public Cursor afterHeader() {
+        Cursor pos = first();
+        // Skip a single following whitespace if it is NOT an EOL token
+        pos.nextIf(PropertiesParser.Token::isWs);
+        // Skip all consecutive comments
+        while (pos.nextIf(PropertiesParser.Type.COMMENT)) {
+            // Skip a single following EOL token
+            pos.nextIf(PropertiesParser.Token::isEol);
+            // Skip a single following whitespace (not EOL) token
+            pos.nextIf(PropertiesParser.Token::isWs);
+        }
+        if (pos.isType(PropertiesParser.Type.KEY)) {
+            // We found a comment attached to a property, not a header comment
+            pos = first();
+        } else {
+            pos.home();
+        }
+        return pos;
     }
 
     private void validate(boolean ok, Cursor cursor) {
