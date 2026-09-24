@@ -7,6 +7,25 @@ public class Cursor {
     private final List<PropertiesParser.Token> tokens;
     private int index;
 
+    public enum EolType {
+        LF("\n", EOL_LF),
+        CRLF("\r\n", EOL_CRLF),
+        SYSTEM(System.lineSeparator(), System.lineSeparator().equals("\r\n") ? EOL_CRLF : EOL_LF);
+
+        public final String text;
+        public final PropertiesParser.Token token;
+
+        EolType(String text, PropertiesParser.Token token) {
+            this.text = text;
+            this.token = token;
+        }
+    }
+
+    private static final PropertiesParser.Token EOL_LF =
+            new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n");
+    private static final PropertiesParser.Token EOL_CRLF =
+            new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\r\n");
+
     public static Cursor index(List<PropertiesParser.Token> tokens, int index) {
         return new Cursor(tokens, index);
     }
@@ -26,6 +45,10 @@ public class Cursor {
 
     public boolean atStart() {
         return index < 0;
+    }
+
+    public boolean atEnd() {
+        return index >= tokens.size();
     }
 
     public int position() {
@@ -161,10 +184,11 @@ public class Cursor {
     /**
      * Inserts an EOL Token at the current position.
      * @see #add(PropertiesParser.Token)
+     * @param eolType the line separator used for the token. Typically {@link Properties#getEolType()}
      * @return {@code this}
      */
-    public Cursor addEol() {
-        return add(PropertiesParser.Token.EOL);
+    public Cursor addEol(EolType eolType) {
+        return add(eolType.token);
     }
 
     private void addToken(int index, PropertiesParser.Token token) {

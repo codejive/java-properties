@@ -50,9 +50,6 @@ public class PropertiesParser {
         final String raw;
         final String text;
 
-        public static final Token EOL =
-                new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n");
-
         /**
          * Constructor for tokens where the raw value and the text value are exactly the same.
          *
@@ -103,7 +100,7 @@ public class PropertiesParser {
          * Returns the token's processed value. Meaning this value will not contain any escape
          * sequences but only actual characters.
          *
-         * @return
+         * @return a string containing the token's processed value
          */
         public String getText() {
             return text != null ? text : raw;
@@ -115,6 +112,7 @@ public class PropertiesParser {
          * @return true if whitespace ending in EOL, false otherwise
          */
         public boolean isEol() {
+            if (raw.isEmpty()) return false;
             int ch = raw.charAt(raw.length() - 1);
             return type == Type.WHITESPACE && PropertiesParser.isEol(ch);
         }
@@ -125,6 +123,7 @@ public class PropertiesParser {
          * @return true if whitespace NOT ending in EOL, false otherwise
          */
         public boolean isWs() {
+            if (raw.isEmpty()) return false;
             int ch = raw.charAt(raw.length() - 1);
             return type == Type.WHITESPACE && !PropertiesParser.isEol(ch);
         }

@@ -8,12 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import org.codejive.properties.PropertiesParser.Token;
 
 /**
  * This class is a replacement for <code>java.util.Properties</code>, with the difference that it
@@ -26,26 +26,54 @@ public class Properties extends AbstractMap<String, String> {
     private final LinkedHashMap<String, String> values;
     private final List<PropertiesParser.Token> tokens;
     private final Properties defaults;
+    private Cursor.EolType eolType;
 
     public Properties() {
         this((Properties) null);
+    }
+
+    public Properties(Cursor.EolType eolType) {
+        this((Properties) null);
+        this.eolType = eolType;
     }
 
     public Properties(Properties defaults) {
         this.defaults = defaults;
         values = new LinkedHashMap<>();
         tokens = new ArrayList<>();
+        eolType = defaults != null ? defaults.eolType : Cursor.EolType.SYSTEM;
     }
 
     private Properties(Properties defaults, List<PropertiesParser.Token> tokens) {
         this.defaults = defaults;
         values = new LinkedHashMap<>();
         this.tokens = tokens;
+        eolType = defaults != null ? defaults.eolType : Cursor.EolType.SYSTEM;
         rawEntrySet()
                 .forEach(
                         e -> {
                             values.put(unescape(e.getKey()), unescape(e.getValue()));
                         });
+    }
+
+    /**
+     * Returns the EOL type currently used by this properties object. This is what will be used when
+     * adding new lines to the properties object.
+     *
+     * @return the EOL type, LF, CRLF or SYSTEM
+     */
+    Cursor.EolType getEolType() {
+        return eolType;
+    }
+
+    /**
+     * Sets the EOL type to be used by this properties object. The new value will only be applied to
+     * future lines added to the properties object.
+     *
+     * @param eolType the EOL type, LF, CRLF or SYSTEM
+     */
+    void setEolType(Cursor.EolType eolType) {
+        this.eolType = eolType;
     }
 
     /**
@@ -134,7 +162,7 @@ public class Properties extends AbstractMap<String, String> {
      *     value are strings, including the keys in the default property list.
      */
     public Set<String> stringPropertyNames() {
-        return Collections.unmodifiableSet(flatten().keySet());
+        return Collections.unmodifiableSet(flattened().keySet());
     }
 
     /**
@@ -144,7 +172,7 @@ public class Properties extends AbstractMap<String, String> {
      */
     public void list(PrintStream out) {
         try {
-            flatten().store(out);
+            flattened().store(out);
         } catch (IOException e) {
             // Ignore any errors
         }
@@ -157,7 +185,7 @@ public class Properties extends AbstractMap<String, String> {
      */
     public void list(PrintWriter out) {
         try {
-            flatten().store(out);
+            flattened().store(out);
         } catch (IOException e) {
             // Ignore any errors
         }
@@ -216,7 +244,7 @@ public class Properties extends AbstractMap<String, String> {
      * @return a <code>Properties</code> object
      */
     public Properties flattened() {
-        Properties result = new Properties();
+        Properties result = new Properties(eolType);
         flatten(result);
         return result;
     }
@@ -230,6 +258,7 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public Set<Entry<String, String>> entrySet() {
+        if (tokens.isEmpty()) return Collections.emptySet();
         return new AbstractSet<Entry<String, String>>() {
             @Override
             public Iterator<Entry<String, String>> iterator() {
@@ -272,6 +301,7 @@ public class Properties extends AbstractMap<String, String> {
      * @return A set of raw key values
      */
     public Set<String> rawKeySet() {
+        if (tokens.isEmpty()) return Collections.emptySet();
         return tokens.stream()
                 .filter(t -> t.type == PropertiesParser.Type.KEY)
                 .map(PropertiesParser.Token::getRaw)
@@ -285,10 +315,10 @@ public class Properties extends AbstractMap<String, String> {
      * @return a collection of raw values.
      */
     public Collection<String> rawValues() {
-        return combined(tokens)
-                .filter(ts -> ts.get(0).type == PropertiesParser.Type.KEY)
-                .map(ts -> ts.get(2).getRaw())
-                .collect(Collectors.toList());
+        if (tokens.isEmpty()) return Collections.emptyList();
+        List<String> result = new ArrayList<>();
+        walkProperties((key, value) -> result.add(value != null ? value.getRaw() : ""));
+        return result;
     }
 
     /**
@@ -298,10 +328,40 @@ public class Properties extends AbstractMap<String, String> {
      * @return A set of raw key-value entries
      */
     public Set<Entry<String, String>> rawEntrySet() {
-        return combined(tokens)
-                .filter(ts -> ts.get(0).type == PropertiesParser.Type.KEY)
-                .map(ts -> new SimpleEntry<>(ts.get(0).getRaw(), ts.get(2).getRaw()))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (tokens.isEmpty()) return Collections.emptySet();
+        Set<Entry<String, String>> result = new LinkedHashSet<>();
+        walkProperties(
+                (key, value) ->
+                        result.add(
+                                new SimpleEntry<>(
+                                        key.getRaw(), value != null ? value.getRaw() : "")));
+        return result;
+    }
+
+    private void walkProperties(BiConsumer<Token, Token> func) {
+        if (tokens.isEmpty()) return;
+        Cursor c = Cursor.first(tokens);
+        while (c.hasToken()) {
+            if (c.isType(PropertiesParser.Type.KEY)) {
+                PropertiesParser.Token keyToken = c.token();
+                c.next();
+                if (c.isType(PropertiesParser.Type.SEPARATOR)) {
+                    c.next();
+                    if (c.isType(PropertiesParser.Type.VALUE)) {
+                        func.accept(keyToken, c.token());
+                        c.next();
+                    } else {
+                        // We're dealing with a value-less property
+                        func.accept(keyToken, null);
+                    }
+                } else {
+                    // We're dealing with a key-only property
+                    func.accept(keyToken, null);
+                }
+            } else {
+                c.next();
+            }
+        }
     }
 
     @Override
@@ -405,20 +465,32 @@ public class Properties extends AbstractMap<String, String> {
         if (pos.hasToken()) {
             pos.next();
             if (pos.isEol()) {
-                pos.next().addEol().prev();
+                pos.next().addEol(eolType).prev();
             } else {
-                pos.addEol();
+                pos.addEol(eolType);
             }
         } else {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
             // skipping any header comments
-            pos = skipHeaderCommentLines();
-            if (pos.position() > 0) {
+            // (*) = we'll always skip past the final comment's EOL
+            pos = determineAddNewInsertionPoint();
+            if (!pos.atStart()) {
                 // We have to make sure there are at least 2 EOLs after the last comment
-                int eols = pos.prevCount(t -> t.isEol());
-                for (int i = 0; i < 2 - eols; i++) {
-                    pos.addEol();
+                if (pos.atEnd()) {
+                    Cursor pp = last();
+                    if (pp.isType(PropertiesParser.Type.COMMENT)) {
+                        // If the last token is a comment, we're short two EOLs
+                        pos.addEol(eolType);
+                        pos.addEol(eolType);
+                    } else if (pp.isEol()) {
+                        // If the last element is an EOL we still need one (*)
+                        pos.addEol(eolType);
+                    }
+                } else if (pos.isEol()) {
+                    // If the current element is an EOL we know there are at least 2 (*),
+                    // so we can simply move past it
+                    pos.next();
                 }
             }
         }
@@ -546,7 +618,7 @@ public class Properties extends AbstractMap<String, String> {
         // Add any additional lines (when there are more new lines than old ones)
         for (int j = i; j < newcs.size(); j++) {
             pos.add(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, newcs.get(j)));
-            pos.addEol();
+            pos.addEol(eolType);
         }
 
         return pos;
@@ -711,9 +783,7 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     private static List<PropertiesParser.Token> escapeTokens(List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(
-                tokens,
-                ts -> Arrays.asList(escapeToken(ts.get(0)), ts.get(1), escapeToken(ts.get(2))));
+        return mapKeyValues(tokens, Properties::escapeToken, Properties::escapeToken);
     }
 
     private static PropertiesParser.Token escapeToken(PropertiesParser.Token token) {
@@ -738,9 +808,7 @@ public class Properties extends AbstractMap<String, String> {
 
     private static List<PropertiesParser.Token> unescapeTokens(
             List<PropertiesParser.Token> tokens) {
-        return mapKeyValues(
-                tokens,
-                ts -> Arrays.asList(unescapeToken(ts.get(0)), ts.get(1), unescapeToken(ts.get(2))));
+        return mapKeyValues(tokens, Properties::unescapeToken, Properties::unescapeToken);
     }
 
     private static PropertiesParser.Token unescapeToken(PropertiesParser.Token token) {
@@ -753,44 +821,20 @@ public class Properties extends AbstractMap<String, String> {
 
     private static List<PropertiesParser.Token> mapKeyValues(
             List<PropertiesParser.Token> tokens,
-            Function<List<PropertiesParser.Token>, List<PropertiesParser.Token>> mapper) {
-        return combined(tokens)
+            Function<PropertiesParser.Token, PropertiesParser.Token> keyMapper,
+            Function<PropertiesParser.Token, PropertiesParser.Token> valueMapper) {
+        return tokens.stream()
                 .map(
-                        ts -> {
-                            if (ts.get(0).type == PropertiesParser.Type.KEY) {
-                                return mapper.apply(ts);
+                        tk -> {
+                            if (tk.type == PropertiesParser.Type.KEY) {
+                                return keyMapper.apply(tk);
+                            } else if (tk.type == PropertiesParser.Type.VALUE) {
+                                return valueMapper.apply(tk);
                             } else {
-                                return ts;
+                                return tk;
                             }
                         })
-                .flatMap(Collection::stream)
                 .collect(Collectors.toList());
-    }
-
-    private static Stream<List<PropertiesParser.Token>> combined(
-            List<PropertiesParser.Token> tokens) {
-        Iterator<List<PropertiesParser.Token>> iter =
-                new Iterator<List<PropertiesParser.Token>>() {
-                    Iterator<PropertiesParser.Token> i = tokens.iterator();
-
-                    @Override
-                    public boolean hasNext() {
-                        return i.hasNext();
-                    }
-
-                    @Override
-                    public List<PropertiesParser.Token> next() {
-                        PropertiesParser.Token t = i.next();
-                        if (t.type == PropertiesParser.Type.KEY) {
-                            return Arrays.asList(t, i.next(), i.next());
-                        } else {
-                            return Collections.singletonList(t);
-                        }
-                    }
-                };
-
-        return StreamSupport.stream(
-                Spliterators.spliterator(iter, tokens.size(), Spliterator.SORTED), false);
     }
 
     /**
@@ -861,13 +905,26 @@ public class Properties extends AbstractMap<String, String> {
 
     private Properties load(List<PropertiesParser.Token> ts) {
         tokens.addAll(ts);
+        eolType = determineEol();
         String key = null;
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
                 key = token.getText();
+            }
+            if (token.type == PropertiesParser.Type.SEPARATOR && key == null) {
+                // In case if a name-less property
+                key = "";
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
+                key = null;
+            } else if (token.isEol() && key != null) {
+                // In case of value-less properties
+                values.put(key, "");
             }
+        }
+        // In case of the last property being value-less
+        if (key != null) {
+            values.put(key, "");
         }
         return this;
     }
@@ -945,16 +1002,15 @@ public class Properties extends AbstractMap<String, String> {
     public void store(Writer writer, String... comment) throws IOException {
         Cursor pos = first();
         if (comment.length > 0) {
-            pos = skipHeaderCommentLines();
-            String nl = determineNewline();
+            pos = determineStoreInsertionPoint();
             List<String> newcs = normalizeComments(Arrays.asList(comment), "# ");
             for (String c : newcs) {
                 writer.write(new PropertiesParser.Token(PropertiesParser.Type.COMMENT, c).getRaw());
-                writer.write(nl);
+                writer.write(eolType.text);
             }
             // We write an extra empty line so this comment won't be taken as part of the first
             // property
-            writer.write(nl);
+            writer.write(eolType.text);
         }
         while (pos.hasToken()) {
             writer.write(pos.raw());
@@ -971,7 +1027,7 @@ public class Properties extends AbstractMap<String, String> {
      *
      * @return A string containing the line ending to use
      */
-    String determineNewline() {
+    Cursor.EolType determineEol() {
         boolean lf = false;
         boolean crlf = false;
         for (PropertiesParser.Token token : tokens) {
@@ -984,12 +1040,29 @@ public class Properties extends AbstractMap<String, String> {
             }
         }
         if (lf && crlf) {
-            return System.lineSeparator();
+            return Cursor.EolType.SYSTEM;
         } else if (crlf) {
-            return "\r\n";
+            return Cursor.EolType.CRLF;
         } else {
-            return "\n";
+            return Cursor.EolType.LF;
         }
+    }
+
+    private Cursor determineStoreInsertionPoint() {
+        Cursor pos = skipHeaderCommentLines();
+        if (pos.isType(PropertiesParser.Type.KEY)) {
+            // We found a comment attached to a property, not a header comment
+            pos = first();
+        } else {
+            // Skip any following empty lines
+            pos.nextWhile(PropertiesParser.Token::isEol);
+        }
+        return pos;
+    }
+
+    private Cursor determineAddNewInsertionPoint() {
+        Cursor pos = skipHeaderCommentLines();
+        return skipHome(pos);
     }
 
     private Cursor skipHeaderCommentLines() {
@@ -1003,14 +1076,15 @@ public class Properties extends AbstractMap<String, String> {
             // Skip a single following whitespace if it is NOT an EOL token
             pos.nextIf(PropertiesParser.Token::isWs);
         }
-        if (pos.isType(PropertiesParser.Type.KEY)) {
-            // We found a comment attached to a property, not a header comment
-            return first();
-        } else {
-            // Skip any following empty lines
-            pos.nextWhile(PropertiesParser.Token::isEol);
-            return pos;
+        return pos;
+    }
+
+    // Skips to start of line
+    private Cursor skipHome(Cursor pos) {
+        if (!pos.atStart() && pos.copy().prev().isWhitespace()) {
+            pos.prev();
         }
+        return pos;
     }
 
     Cursor index(int index) {
