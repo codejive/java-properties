@@ -43,6 +43,18 @@ public class Cursor {
         this.index = index;
     }
 
+    List<PropertiesParser.Token> getTokens() {
+        return tokens;
+    }
+
+    int getIndex() {
+        return index;
+    }
+
+    void setIndex(int index) {
+        this.index = index;
+    }
+
     public boolean atStart() {
         return index < 0;
     }

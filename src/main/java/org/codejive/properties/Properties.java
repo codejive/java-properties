@@ -390,15 +390,33 @@ public class Properties extends AbstractMap<String, String> {
 
     @Override
     public String put(String key, String value) {
-        if (key == null || value == null) {
+        return put(key, value, afterLastProperty());
+    }
+
+    /**
+     * Works like <code>put()</code> but adds the property at a user-defined location if it does not exist yet.
+     * If the property already exists it will not be moved, only the value will be replaced.
+     *
+     * @param key    key with which the specified value is to be associated
+     * @param value  value to be associated with the specified key
+     * @param cursor a Cursor pointing at the location in which the property should be inserted.
+     *               After execution, this cursor will point to the token after the inserted VALUE token.
+     * @return the previous value associated with key, or null if there was no mapping for key.
+     */
+    public String put(String key, String value, Cursor cursor) {
+        if (key == null || value == null || cursor == null) {
             throw new NullPointerException();
         }
+        if (cursor.getTokens() != tokens) {
+            throw new IllegalArgumentException("The cursor does not belong to this Properties object.");
+        }
+
         String rawValue = escapeValue(value);
         if (values.containsKey(key)) {
             replaceValue(key, rawValue, value);
         } else {
             String rawKey = escapeKey(key);
-            addNewKeyValue(rawKey, key, rawValue, value);
+            addNewKeyValue(rawKey, key, rawValue, value, cursor);
         }
         return values.put(key, value);
     }
@@ -433,7 +451,7 @@ public class Properties extends AbstractMap<String, String> {
         if (values.containsKey(key)) {
             replaceValue(key, rawValue, value);
         } else {
-            addNewKeyValue(rawKey, key, rawValue, value);
+            addNewKeyValue(rawKey, key, rawValue, value, afterLastProperty());
         }
         return values.put(key, value);
     }
@@ -446,59 +464,99 @@ public class Properties extends AbstractMap<String, String> {
         pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
-    // Add new tokens to the end of the list of tokens
-    private Cursor addNewKeyValue(String rawKey, String key, String rawValue, String value) {
-        // Track back from end until we encounter the last VALUE token (if any)
-        Cursor pos = last();
-        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
-            pos.prev();
+    /**
+     * This method "sanitizes" the cursor position, such that it points to the first
+     * token of the block it currently points at.
+     * <br/>
+     * This method navigates to:
+     * <ul>
+     *     <li>the first comment of the property (if 'pos' is pointing into an existing property)</li>
+     *     <li>the first token of the current line (if 'pos' is pointing at whitespace)</li>
+     *     <li>the first token of the second property (if 'pos' is pointing between two properties)</li>
+     * </ul>
+     * @param pos the cursor to sanitize
+     */
+    private void navigateToStartOfBlock(Cursor pos) {
+        if (!pos.hasToken())
+            return;
+
+        // prev() if the current EOL belongs to a property/comment.
+        if (pos.isEol()) {
+            if (!pos.copy().prev().isType(PropertiesParser.Type.WHITESPACE)) {
+                pos.prev();
+            }
         }
-        // Make sure we're either at the start or we've found a property
-        validate(
-                pos.atStart()
-                        || pos.isType(
-                                PropertiesParser.Type.VALUE,
-                                PropertiesParser.Type.SEPARATOR,
-                                PropertiesParser.Type.KEY),
-                pos);
-        // Add a newline whitespace token if necessary
-        if (pos.hasToken()) {
-            pos.next();
-            if (pos.isEol()) {
-                pos.next().addEol(eolType).prev();
+
+        pos.prevIf(PropertiesParser.Type.VALUE);
+        pos.prevIf(PropertiesParser.Type.SEPARATOR);
+
+        // navigate onto the preceeding whitespace if pos is pointing at a property/comment.
+        Cursor peek = pos.copy().prev();
+        if (pos.isType(PropertiesParser.Type.KEY, PropertiesParser.Type.COMMENT)) {
+            if (peek.isWhitespace()) {
+                pos.prev();
+                peek.prev();
+            }
+        }
+
+        // navigate to the start of the comment-block (if any)
+        while (peek.prevIf(PropertiesParser.Token::isEol)
+                && peek.prevIf(PropertiesParser.Type.COMMENT)
+        ) {
+            peek.prevIf(PropertiesParser.Token::isWs);
+            pos.setIndex(peek.getIndex() + 1); // make pos point at the comment (or its preceeding whitespace)
+        }
+    }
+
+    private void addNewKeyValue(String rawKey, String key, String rawValue, String value, Cursor pos) {
+        // adjust pos such that the property can be inserted safely
+        if (pos.atEnd()) {
+            Cursor pp = last();
+            if (!pp.hasToken()) {
+                // there are no tokens, insertion is safe.
+            } else if (pp.isType(PropertiesParser.Type.COMMENT)) {
+                // If the last token is a comment, the property must be separated by two EOLs
+                pos.addEol(eolType);
+                pos.addEol(eolType);
+            } else if (pp.isEol()) {
+                pp.prev();
+                if (pp.isType(PropertiesParser.Type.COMMENT)) {
+                    // The comment and added property must be separated by two EOLs
+                    // We need one extra EOL.
+                    pos.addEol(eolType);
+                } else if (!pp.isEol()) {
+                    // the original file terminated its' last property with an EOL.
+                    // append EOL to preserve that.
+                    pos.addEol(eolType).prev();
+                }
             } else {
+                // The last token is a property (KEY, SEPERATOR, VALUE) or whitespace.
+                // We only need one EOL.
                 pos.addEol(eolType);
             }
+        } else if (pos.atStart()) {
+            if (!tokens.isEmpty()) {
+                pos.addEol(eolType).prev();
+            }
         } else {
-            // We're at the start, meaning there are no properties yet,
-            // but there might be comments, so we move forward again,
-            // skipping any header comments
-            // (*) = we'll always skip past the final comment's EOL
-            pos = determineAddNewInsertionPoint();
-            if (!pos.atStart()) {
-                // We have to make sure there are at least 2 EOLs after the last comment
-                if (pos.atEnd()) {
-                    Cursor pp = last();
-                    if (pp.isType(PropertiesParser.Type.COMMENT)) {
-                        // If the last token is a comment, we're short two EOLs
-                        pos.addEol(eolType);
-                        pos.addEol(eolType);
-                    } else if (pp.isEol()) {
-                        // If the last element is an EOL we still need one (*)
-                        pos.addEol(eolType);
-                    }
-                } else if (pos.isEol()) {
-                    // If the current element is an EOL we know there are at least 2 (*),
-                    // so we can simply move past it
-                    pos.next();
+            navigateToStartOfBlock(pos);
+            Cursor peek = pos.copy().prev();
+            // add EOL as needed
+            if (peek.atStart()) {
+                pos.prev().addEol(eolType).prev();
+            } else {
+                int numEols = peek.nextCount(PropertiesParser.Token::isEol);
+                // do not inset extra EOLs at the end of the document
+                if (!peek.atEnd() || numEols < 2) {
+                    pos.addEol(eolType).prev();
                 }
             }
         }
+
         // Add tokens for key, separator and value
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.KEY, rawKey, key));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
-        return pos;
     }
 
     @Override
@@ -1060,31 +1118,20 @@ public class Properties extends AbstractMap<String, String> {
         return pos;
     }
 
-    private Cursor determineAddNewInsertionPoint() {
-        Cursor pos = skipHeaderCommentLines();
-        return skipHome(pos);
-    }
-
     private Cursor skipHeaderCommentLines() {
-        Cursor pos = first();
+        Cursor result = first();
+        Cursor commentScanner = result.copy();
         // Skip a single following whitespace if it is NOT an EOL token
-        pos.nextIf(PropertiesParser.Token::isWs);
+        commentScanner.nextIf(PropertiesParser.Token::isWs);
         // Skip all consecutive comments
-        while (pos.nextIf(PropertiesParser.Type.COMMENT)) {
+        while (commentScanner.nextIf(PropertiesParser.Type.COMMENT)) {
             // Skip a single following whitespace if it IS an EOL token
-            pos.nextIf(PropertiesParser.Token::isEol);
+            commentScanner.nextIf(PropertiesParser.Token::isEol);
+            result.setIndex(commentScanner.getIndex());
             // Skip a single following whitespace if it is NOT an EOL token
-            pos.nextIf(PropertiesParser.Token::isWs);
+            commentScanner.nextIf(PropertiesParser.Token::isWs);
         }
-        return pos;
-    }
-
-    // Skips to start of line
-    private Cursor skipHome(Cursor pos) {
-        if (!pos.atStart() && pos.copy().prev().isWhitespace()) {
-            pos.prev();
-        }
-        return pos;
+        return result;
     }
 
     Cursor index(int index) {
@@ -1103,6 +1150,125 @@ public class Properties extends AbstractMap<String, String> {
      */
     public Cursor last() {
         return Cursor.last(tokens);
+    }
+
+    /**
+     * @return a Cursor pointing to the first valid insertion location for properties after the header comment.
+     */
+    public Cursor afterHeaderComment() {
+        Cursor pos = skipHeaderCommentLines();
+        // pos points to the first token after the header comment EOL
+        // if a second EOL is available, skip that too (separates the inserted property from the header)
+        Cursor peek = pos.copy().next();
+        if (pos.isEol() && (peek.atEnd() || peek.isEol())) {
+            pos.next();
+        }
+        return pos;
+    }
+
+    /**
+     * @return a Cursor pointing to the first token of the first property.
+     * (such that {@link Cursor#add(Token)} would insert the token before the first property,
+     * and after any header comments)
+     */
+    public Cursor beforeFirstProperty() {
+        Cursor pos = first();
+        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
+            pos.next();
+        }
+        // Make sure we're either at the end or we've found a property
+        validate(
+                pos.atEnd()
+                        || pos.isType(
+                        PropertiesParser.Type.VALUE,
+                        PropertiesParser.Type.SEPARATOR,
+                        PropertiesParser.Type.KEY),
+                pos);
+
+        if(pos.atEnd()) {
+            // We're at the end, meaning there are no properties yet,
+            // but there might be comments, so delegate to 'afterHeaderComment'
+            return afterHeaderComment();
+        }else{
+            // We're pointing at a property. Navigate to the first token of the property.
+            navigateToStartOfBlock(pos);
+            return pos;
+        }
+    }
+
+    /**
+     * @return a Cursor pointing after the last token of the last property.
+     * (such that {@link Cursor#add(Token)} would insert the token after the last property,
+     * and before any trailing comments)
+     */
+    public Cursor afterLastProperty() {
+        // Track back from end until we encounter the last VALUE token (if any)
+        Cursor pos = last();
+        while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
+            pos.prev();
+        }
+        // Make sure we're either at the start or we've found a property
+        validate(
+                pos.atStart()
+                        || pos.isType(
+                        PropertiesParser.Type.VALUE,
+                        PropertiesParser.Type.SEPARATOR,
+                        PropertiesParser.Type.KEY),
+                pos);
+
+        if(pos.atStart()) {
+            // We're at the start, meaning there are no properties yet,
+            // but there might be comments, so delegate to 'afterHeaderComment'
+            return afterHeaderComment();
+        }else{
+            // We're pointing at a property. Navigate to the token after the property.
+            pos.next();
+            if (pos.isEol()) {
+                pos.next();
+            }
+        }
+
+        return pos;
+    }
+
+    /**
+     * @param key the key of the property to navigate to
+     * @return a Cursor pointing to the first token of the property specified by <code>key</code>.
+     * (such that {@link Cursor#add(Token)} would insert the token <i>before</i> the specified property)
+     * <br/>
+     * If the specified property does not exist, the result of {@link #afterLastProperty()} is returned instead.
+     */
+    public Cursor before(String key) {
+        Cursor pos = indexOf(key);
+        if (pos.atStart()) {
+            return afterLastProperty();
+        }
+
+        navigateToStartOfBlock(pos);
+        return pos;
+    }
+
+    /**
+     * @param key the key of the property to navigate to
+     * @return a Cursor pointing after the last token of the property specified by <code>key</code>.
+     * (such that {@link Cursor#add(Token)} would insert the token <i>after</i> the specified property)
+     * <br/>
+     * If the specified property does not exist, the result of {@link #afterLastProperty()} is returned instead.
+     */
+    public Cursor after(String key) {
+        Cursor pos = indexOf(key);
+        if (pos.atStart()) {
+            return afterLastProperty();
+        }
+
+        // navigate to after the property.
+        pos.nextIf(PropertiesParser.Type.KEY);
+        pos.nextIf(PropertiesParser.Type.SEPARATOR);
+        pos.nextIf(PropertiesParser.Type.VALUE);
+        if (pos.isEol()) {
+            pos.next();
+        }
+        return pos;
     }
 
     private void validate(boolean ok, Cursor cursor) {
