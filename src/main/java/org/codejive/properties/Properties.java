@@ -464,50 +464,6 @@ public class Properties extends AbstractMap<String, String> {
         pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
-    /**
-     * This method "sanitizes" the cursor position, such that it points to the first
-     * token of the block it currently points at.
-     * <br/>
-     * This method navigates to:
-     * <ul>
-     *     <li>the first comment of the property (if 'pos' is pointing into an existing property)</li>
-     *     <li>the first token of the current line (if 'pos' is pointing at whitespace)</li>
-     *     <li>the first token of the second property (if 'pos' is pointing between two properties)</li>
-     * </ul>
-     * @param pos the cursor to sanitize
-     */
-    private void navigateToStartOfBlock(Cursor pos) {
-        if (!pos.hasToken())
-            return;
-
-        // prev() if the current EOL belongs to a property/comment.
-        if (pos.isEol()) {
-            if (!pos.copy().prev().isType(PropertiesParser.Type.WHITESPACE)) {
-                pos.prev();
-            }
-        }
-
-        pos.prevIf(PropertiesParser.Type.VALUE);
-        pos.prevIf(PropertiesParser.Type.SEPARATOR);
-
-        // navigate onto the preceeding whitespace if pos is pointing at a property/comment.
-        Cursor peek = pos.copy().prev();
-        if (pos.isType(PropertiesParser.Type.KEY, PropertiesParser.Type.COMMENT)) {
-            if (peek.isWhitespace()) {
-                pos.prev();
-                peek.prev();
-            }
-        }
-
-        // navigate to the start of the comment-block (if any)
-        while (peek.prevIf(PropertiesParser.Token::isEol)
-                && peek.prevIf(PropertiesParser.Type.COMMENT)
-        ) {
-            peek.prevIf(PropertiesParser.Token::isWs);
-            pos.setIndex(peek.getIndex() + 1); // make pos point at the comment (or its preceeding whitespace)
-        }
-    }
-
     private void addNewKeyValue(String rawKey, String key, String rawValue, String value, Cursor pos) {
         // adjust pos such that the property can be inserted safely
         if (pos.atEnd()) {
@@ -539,7 +495,7 @@ public class Properties extends AbstractMap<String, String> {
                 pos.addEol(eolType).prev();
             }
         } else {
-            navigateToStartOfBlock(pos);
+            pos.navigateToStartOfBlock();
             Cursor peek = pos.copy().prev();
             // add EOL as needed
             if (peek.atStart()) {
@@ -1191,7 +1147,7 @@ public class Properties extends AbstractMap<String, String> {
             return afterHeaderComment();
         }else{
             // We're pointing at a property. Navigate to the first token of the property.
-            navigateToStartOfBlock(pos);
+            pos.navigateToStartOfBlock();
             return pos;
         }
     }
@@ -1244,8 +1200,7 @@ public class Properties extends AbstractMap<String, String> {
             return afterLastProperty();
         }
 
-        navigateToStartOfBlock(pos);
-        return pos;
+        return pos.navigateToStartOfBlock();
     }
 
     /**

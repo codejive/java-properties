@@ -181,6 +181,50 @@ public class Cursor {
     }
 
     /**
+     * This method moves the cursor to the first token of the block it currently points at.
+     * <br/>
+     * This method navigates to:
+     * <ul>
+     *     <li>the first comment of the property (if pointing into an existing property)</li>
+     *     <li>the first token of the current line (if pointing at whitespace)</li>
+     *     <li>the first token of the second property (if pointing between two properties)</li>
+     * </ul>
+     * @return {@code this}
+     */
+    public Cursor navigateToStartOfBlock() {
+        if (!hasToken())
+            return this;
+
+        // prev() if the current EOL belongs to a property/comment.
+        if (isEol()) {
+            if (!copy().prev().isType(PropertiesParser.Type.WHITESPACE)) {
+                prev();
+            }
+        }
+
+        prevIf(PropertiesParser.Type.VALUE);
+        prevIf(PropertiesParser.Type.SEPARATOR);
+
+        // navigate onto the preceeding whitespace if pos is pointing at a property/comment.
+        Cursor peek = copy().prev();
+        if (isType(PropertiesParser.Type.KEY, PropertiesParser.Type.COMMENT)) {
+            if (peek.isWhitespace()) {
+                prev();
+                peek.prev();
+            }
+        }
+
+        // navigate to the start of the comment-block (if any)
+        while (peek.prevIf(PropertiesParser.Token::isEol)
+                && peek.prevIf(PropertiesParser.Type.COMMENT)
+        ) {
+            peek.prevIf(PropertiesParser.Token::isWs);
+            setIndex(peek.getIndex() + 1); // make pos point at the comment (or its preceeding whitespace)
+        }
+        return this;
+    }
+
+    /**
      * Inserts a token at the current position, shifting the current token (if any) and any subsequent tokens to the right (adds one to their indices).
      * <br/>
      * This method advances the cursor by one, such that the cursor state remains unchanged (pointing to the same token as before).
