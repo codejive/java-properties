@@ -380,6 +380,15 @@ public class TestProperties {
     }
 
     @Test
+    void testStoreHeaderAddNew() throws IOException, URISyntaxException {
+        Path f = getResource("/test-ws-commentfirstline.properties");
+        Properties p = Properties.loadProperties(f);
+        StringWriter sw = new StringWriter();
+        p.store(sw, "new header");
+        assertThat(sw.toString()).isEqualTo(readAll(getResource("/test-ws-commentfirstline-storeheader.properties")));
+    }
+
+    @Test
     void testStoreHeaderCrLf() throws IOException, URISyntaxException {
         Path f = getResource("/testcrlf.properties");
         Properties p = Properties.loadProperties(f);

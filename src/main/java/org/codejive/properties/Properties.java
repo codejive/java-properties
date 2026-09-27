@@ -1064,13 +1064,15 @@ public class Properties extends AbstractMap<String, String> {
 
     private Cursor determineStoreInsertionPoint() {
         Cursor pos = skipHeaderCommentLines();
-        if (pos.isType(PropertiesParser.Type.KEY)) {
+        Cursor peek = pos.copy();
+        peek.nextIf(PropertiesParser.Type.WHITESPACE);
+        if (peek.isType(PropertiesParser.Type.KEY)) {
             // We found a comment attached to a property, not a header comment
-            pos = first();
-        } else {
-            // Skip any following empty lines
-            pos.nextWhile(PropertiesParser.Token::isEol);
+            return first();
         }
+
+        // Skip any following empty lines
+        pos.nextWhile(PropertiesParser.Token::isEol);
         return pos;
     }
 
