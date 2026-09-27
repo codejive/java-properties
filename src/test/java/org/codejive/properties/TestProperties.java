@@ -9,11 +9,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.AbstractMap;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestProperties {
     @Test
@@ -1159,6 +1161,342 @@ public class TestProperties {
         assertThat(sw.toString()).isEqualTo(expected);
     }
 
+    // A test that inserts a property before every comment,
+    // by passing a Cursor to 'put()' that points at each comment.
+    @Test
+    void testPutTargetsComment() throws IOException {
+        final String given = "  # comment 1\n"
+                + "\n"
+                + "# comment 2\n"
+                + "  \n"
+                + "  # comment 3\n"
+                + "  key1 = value1\n"
+                + "\n"
+                + "  ! block- 4\n"
+                + "  # comment 5\n"
+                + "\n"
+                + "# comment 6";
+        final String expected = "put1=value1\n"
+                + "  # comment 1\n"
+                + "\n"
+                + "put2=value2\n"
+                + "# comment 2\n"
+                + "  \n"
+                + "put3=value3\n"
+                + "  # comment 3\n"
+                + "  key1 = value1\n"
+                + "\n"
+                + "put4=value4\n"
+                + "put5=value5\n"
+                + "  ! block- 4\n"
+                + "  # comment 5\n"
+                + "\n"
+                + "put6=value6\n"
+                + "# comment 6";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        for (int commentIdx = 0; ; commentIdx++) {
+            Cursor c = p.first();
+            // skip n comments
+            for (int i = 0; i < commentIdx; i++) {
+                c.nextWhile(t -> t.getType() != PropertiesParser.Type.COMMENT);
+                c.next();
+            }
+            // find the target comment
+            c.nextWhile(t -> t.getType() != PropertiesParser.Type.COMMENT);
+
+            if (c.atEnd()) {
+                break;
+            }
+
+            assertThat(c.type()).isEqualTo(PropertiesParser.Type.COMMENT);
+            int putNum = commentIdx + 1;
+            p.put("put" + putNum, "value" + putNum, c);
+        }
+
+        expectStoreText(p, expected);
+    }
+
+    // A test that inserts a property before every whitespace,
+    // by passing a Cursor to 'put()' that points at each whitespace.
+    @Test
+    void testPutTargetsWhitespace() throws IOException {
+        final String given = "  \n" // ws at beginning of file
+                + "  \n" // ws inbetween tokens
+                + "  # comment\n" // ws before comment
+                + "  key=value\n" // ws before property
+                + "# comment\n"
+                + "  \n" // ws after comment
+                + "  "; // ws at end of file
+        final String expected = "put1=value1\n"
+                + "  \n"
+                + "put2=value2\n"
+                + "  \n"
+                + "put3=value3\n" // added by the ws before the comment
+                + "put4=value4\n" // added by the ws before the property
+                + "  # comment\n"
+                + "  key=value\n"
+                // added by the ws below the comment.
+                // (is inserted before the comment, because inserting after would attach the comment to the property)
+                + "put5=value5\n"
+                + "# comment\n"
+                + "  \n"
+                + "put6=value6\n"
+                + "  ";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        for (int wsIdx = 0; ; wsIdx++) {
+            Cursor c = p.first();
+            // skip n whitespaces
+            for (int i = 0; i < wsIdx; i++) {
+                c.nextWhile(t -> t.getType() != PropertiesParser.Type.WHITESPACE || !t.raw.startsWith(" "));
+                c.next();
+            }
+            // find the target whitespace
+            c.nextWhile(t -> t.getType() != PropertiesParser.Type.WHITESPACE || !t.raw.startsWith(" "));
+
+            if (c.atEnd()) {
+                break;
+            }
+
+            assertThat(c.type()).isEqualTo(PropertiesParser.Type.WHITESPACE);
+            int putNum = wsIdx + 1;
+            p.put("put" + putNum, "value" + putNum, c);
+        }
+
+        expectStoreText(p, expected);
+    }
+
+    static Stream<Arguments> testPutFirstLine() {
+        return Stream.of(
+                Arguments.arguments("", "put=val"),
+                Arguments.arguments("key=value", "put=val\nkey=value"),
+                Arguments.arguments("# file comment", "put=val\n# file comment"),
+                Arguments.arguments("  ", "put=val\n  ")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void testPutFirstLine(String given, String expected) throws IOException {
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("put", "val", p.first().prev());
+        expectStoreText(p, expected);
+    }
+
+    static Stream<Arguments> testPutLastLine() {
+        return Stream.of(
+                Arguments.arguments("", "put=val"),
+                Arguments.arguments("key=value", "key=value\nput=val"),
+                Arguments.arguments("# file comment", "# file comment\n\nput=val"),
+                Arguments.arguments("  ", "  \nput=val")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void testPutLastLine(String given, String expected) throws IOException {
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("put", "val", p.last().next());
+        expectStoreText(p, expected);
+    }
+
+    // A test that inserts a property before and after every property.
+    @Test
+    void testInsertBeforeAndAfterProperties() throws IOException {
+        final String given = "key1=val1\n" // property at beginning of file
+                + "\n"
+                + "  # key2 comment\n"
+                + "  key2=val2\n" // property with preceeding and trailing comment
+                + "  # key2 trailing comment\n"
+                + "\n"
+                + "key\\\n3 = val\\\n3\n" // property with "multiline" key and value
+                + "\n"
+                + "key4=val4"; // property at end of file
+        final String expected = "key1.before=val1.before\n"
+                + "key1=val1\n"
+                + "key1.after=val1.after\n"
+                + "\n"
+                + "key2.before=val2.before\n"
+                + "  # key2 comment\n"
+                + "  key2=val2\n"
+                + "key2.after=val2.after\n"
+                + "  # key2 trailing comment\n"
+                + "\n"
+                + "key3.before=val3.before\n"
+                + "key\\\n3 = val\\\n3\n"
+                + "key3.after=val3.after\n"
+                + "\n"
+                + "key4.before=val4.before\n"
+                + "key4=val4\n"
+                + "key4.after=val4.after\n"
+                + "unknown.key.before=unknown.value.before\n"
+                + "unknown.key.after=unknown.value.after";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        Map<String, String> pCopy = new HashMap<>(p);
+        for (Map.Entry<String, String> entry : pCopy.entrySet()) {
+            p.put(entry.getKey() + ".before", entry.getValue() + ".before", p.before(entry.getKey()));
+            p.put(entry.getKey() + ".after", entry.getValue() + ".after", p.after(entry.getKey()));
+        }
+
+        // also insert at an unknown key
+        p.put("unknown.key.before", "unknown.value.before", p.before("unknown.key"));
+        p.put("unknown.key.after", "unknown.value.after", p.after("unknown.key"));
+
+        expectStoreText(p, expected);
+    }
+
+    // Test inserts with a user-specified cursor pointing at a VALUE token.
+    @Test
+    void testPutTargetsValue() throws IOException {
+        final String given = "  key1=val1\n"
+                + "  # key 2 comment\n"
+                + "  key2=val2\n"
+                + "  \n"
+                + "  key3=val3";
+        final String expected = "put1=val1\n"
+                + "  key1=val1\n"
+                + "put2=val2\n"
+                + "  # key 2 comment\n"
+                + "  key2=val2\n"
+                + "  \n"
+                + "put3=val3\n"
+                + "  key3=val3";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        for (int valIdx = 0; ; valIdx++) {
+            Cursor c = p.first();
+            // skip 2*n VALUE tokens
+            for (int i = 0; i < (valIdx * 2); i++) {
+                c.nextWhile(t -> t.getType() != PropertiesParser.Type.VALUE);
+                c.next();
+            }
+            // find the target VALUE token
+            c.nextWhile(t -> t.getType() != PropertiesParser.Type.VALUE);
+
+            if (c.atEnd()) {
+                break;
+            }
+
+            assertThat(c.type()).isEqualTo(PropertiesParser.Type.VALUE);
+            int putNum = valIdx + 1;
+            p.put("put" + putNum, "val" + putNum, c);
+        }
+
+        expectStoreText(p, expected);
+    }
+
+    // Test inserts with a user-specified cursor pointing at an EOL token after a VALUE token.
+    @Test
+    void testPutTargetsValueEol() throws IOException {
+        final String given = "  key1=val1\n"
+                + "  # key 2 comment\n"
+                + "  key2=val2\n"
+                + "  \n"
+                + "  key3=val3\n";
+        final String expected = "put1=val1\n"
+                + "  key1=val1\n"
+                + "put2=val2\n"
+                + "  # key 2 comment\n"
+                + "  key2=val2\n"
+                + "  \n"
+                + "put3=val3\n"
+                + "  key3=val3\n";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        for (int valIdx = 0; ; valIdx++) {
+            Cursor c = p.first();
+            // skip 2*n VALUE tokens
+            for (int i = 0; i < (valIdx * 2); i++) {
+                c.nextWhile(t -> t.getType() != PropertiesParser.Type.VALUE);
+                c.next();
+            }
+            // find the target VALUE token
+            c.nextWhile(t -> t.getType() != PropertiesParser.Type.VALUE);
+
+            if (c.atEnd()) {
+                break;
+            }
+
+            assertThat(c.type()).isEqualTo(PropertiesParser.Type.VALUE);
+            c.next();
+            int putNum = valIdx + 1;
+            p.put("put" + putNum, "val" + putNum, c);
+        }
+
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutBeforeFirstProperty() throws IOException {
+        final String given = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "\n"
+                + "key=val\n"
+                + "\n"
+                + "# trailer comment 1\n"
+                + "! trailer comment 2";
+        final String expected = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "\n"
+                + "put=putVal\n"
+                + "key=val\n"
+                + "\n"
+                + "# trailer comment 1\n"
+                + "! trailer comment 2";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("put", "putVal", p.beforeFirstProperty());
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutAfterHeaderComment() throws IOException {
+        final String given = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "\n"
+                + "key=val";
+        final String expected = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "put=putVal\n"
+                + "\n"
+                + "key=val";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("put", "putVal", p.afterHeaderComment());
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutAfterLastProperty() throws IOException {
+        final String given = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "\n"
+                + "key=val\n"
+                + "\n"
+                + "# trailer comment 1\n"
+                + "! trailer comment 2";
+        final String expected = "# header comment 1\n"
+                + "! header comment 2\n"
+                + "\n"
+                + "\n"
+                + "key=val\n"
+                + "put=putVal\n"
+                + "\n"
+                + "# trailer comment 1\n"
+                + "! trailer comment 2";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("put", "putVal", p.afterLastProperty());
+        expectStoreText(p, expected);
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         URL resource = getClass().getResource(name);
         if (resource == null)
@@ -1169,5 +1507,11 @@ public class TestProperties {
 
     private String readAll(Path f) throws IOException {
         return new String(Files.readAllBytes(f), StandardCharsets.UTF_8);
+    }
+
+    private void expectStoreText(Properties props, String expectedText) throws IOException {
+        StringWriter sw = new StringWriter();
+        props.store(sw);
+        assertThat(sw.toString()).isEqualTo(expectedText);
     }
 }
