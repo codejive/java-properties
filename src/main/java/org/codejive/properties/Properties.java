@@ -317,7 +317,7 @@ public class Properties extends AbstractMap<String, String> {
     public Collection<String> rawValues() {
         if (tokens.isEmpty()) return Collections.emptyList();
         List<String> result = new ArrayList<>();
-        walkProperties((key, value) -> result.add(value != null ? value.getRaw() : ""));
+        walkProperties((key, value) -> result.add(value.getRaw()));
         return result;
     }
 
@@ -330,11 +330,7 @@ public class Properties extends AbstractMap<String, String> {
     public Set<Entry<String, String>> rawEntrySet() {
         if (tokens.isEmpty()) return Collections.emptySet();
         Set<Entry<String, String>> result = new LinkedHashSet<>();
-        walkProperties(
-                (key, value) ->
-                        result.add(
-                                new SimpleEntry<>(
-                                        key.getRaw(), value != null ? value.getRaw() : "")));
+        walkProperties((key, value) -> result.add(new SimpleEntry<>(key.getRaw(), value.getRaw())));
         return result;
     }
 
@@ -345,19 +341,9 @@ public class Properties extends AbstractMap<String, String> {
             if (c.isType(PropertiesParser.Type.KEY)) {
                 PropertiesParser.Token keyToken = c.token();
                 c.next();
-                if (c.isType(PropertiesParser.Type.SEPARATOR)) {
-                    c.next();
-                    if (c.isType(PropertiesParser.Type.VALUE)) {
-                        func.accept(keyToken, c.token());
-                        c.next();
-                    } else {
-                        // We're dealing with a value-less property
-                        func.accept(keyToken, null);
-                    }
-                } else {
-                    // We're dealing with a key-only property
-                    func.accept(keyToken, null);
-                }
+                c.next(); // Skip the separator
+                func.accept(keyToken, c.token());
+                c.next();
             } else {
                 c.next();
             }
@@ -441,16 +427,14 @@ public class Properties extends AbstractMap<String, String> {
     private void replaceValue(String key, String rawValue, String value) {
         Cursor pos = indexOf(key);
         validate(pos.nextIf(PropertiesParser.Type.KEY), pos);
-        if (!pos.isType(PropertiesParser.Type.SEPARATOR)) {
-            pos.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
-        } else {
-            pos.next();
+        validate(pos.isType(PropertiesParser.Type.SEPARATOR), pos);
+        // A key-only property has an empty separator token; adding a value needs a delimiter.
+        if (pos.raw().isEmpty()) {
+            pos.replace(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
         }
-        if (pos.isType(PropertiesParser.Type.VALUE)) {
-            pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
-        } else {
-            pos.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
-        }
+        pos.next();
+        validate(pos.isType(PropertiesParser.Type.VALUE), pos);
+        pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
     // Add new tokens to the end of the list of tokens
@@ -904,21 +888,10 @@ public class Properties extends AbstractMap<String, String> {
         for (PropertiesParser.Token token : tokens) {
             if (token.type == PropertiesParser.Type.KEY) {
                 key = token.getText();
-            }
-            if (token.type == PropertiesParser.Type.SEPARATOR && key == null) {
-                // In case if a name-less property
-                key = "";
             } else if (token.type == PropertiesParser.Type.VALUE) {
                 values.put(key, token.getText());
                 key = null;
-            } else if (token.isEol() && key != null) {
-                // In case of value-less properties
-                values.put(key, "");
             }
-        }
-        // In case of the last property being value-less
-        if (key != null) {
-            values.put(key, "");
         }
         return this;
     }
@@ -1126,13 +1099,7 @@ public class Properties extends AbstractMap<String, String> {
             pos.next();
         }
         // Make sure we're either at the end or we've found a property
-        validate(
-                pos.atEnd()
-                        || pos.isType(
-                                PropertiesParser.Type.VALUE,
-                                PropertiesParser.Type.SEPARATOR,
-                                PropertiesParser.Type.KEY),
-                pos);
+        validate(pos.atEnd() || pos.isType(PropertiesParser.Type.KEY), pos);
         if (!pos.atEnd()) {
             pos.prev();
         }
@@ -1146,19 +1113,13 @@ public class Properties extends AbstractMap<String, String> {
      * @return a Cursor pointing to the right position or {@code -1} if not found
      */
     public Cursor afterLastProperty() {
-        // Track back from end until we encounter the last VALUE token (if any)
+        // Track back from end until we encounter the last VALUE token
         Cursor pos = last();
         while (pos.isType(PropertiesParser.Type.WHITESPACE, PropertiesParser.Type.COMMENT)) {
             pos.prev();
         }
         // Make sure we're either at the start or we've found a property
-        validate(
-                pos.atStart()
-                        || pos.isType(
-                                PropertiesParser.Type.VALUE,
-                                PropertiesParser.Type.SEPARATOR,
-                                PropertiesParser.Type.KEY),
-                pos);
+        validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
         if (!pos.atStart()) {
             pos.next();
         }

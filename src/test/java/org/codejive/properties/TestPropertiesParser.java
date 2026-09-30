@@ -30,6 +30,7 @@ public class TestPropertiesParser {
                     + "    two  \\\r\n"
                     + "\tthree\n"
                     + "key.4 = \\u1234\r\n"
+                    + "line-with-missing-value  =  \n"
                     + "line-with-missing-delim  \n"
                     + "multidelim===value\n"
                     + "  # final comment";
@@ -83,6 +84,10 @@ public class TestPropertiesParser {
                         new Token(Type.SEPARATOR, " = "),
                         new Token(Type.VALUE, "\\u1234", "\u1234"),
                         new Token(Type.WHITESPACE, "\r\n"),
+                        new Token(Type.KEY, "line-with-missing-value"),
+                        new Token(Type.SEPARATOR, "  =  "),
+                        new Token(Type.VALUE, ""),
+                        new Token(Type.WHITESPACE, "\n"),
                         new Token(Type.KEY, "line-with-missing-delim"),
                         new Token(Type.SEPARATOR, "  "),
                         new Token(Type.VALUE, ""),
@@ -101,5 +106,29 @@ public class TestPropertiesParser {
         Stream<Token> tokens = PropertiesParser.tokens(rdr);
         String props2 = tokens.map(Token::getRaw).collect(Collectors.joining());
         assertThat(props2).isEqualTo(props);
+    }
+
+    @Test
+    void testEmptySeparatorAndValueAtEof() throws IOException {
+        List<Token> tokens =
+                PropertiesParser.tokens(new StringReader("foo=")).collect(Collectors.toList());
+
+        assertThat(tokens)
+                .containsExactly(
+                        new Token(Type.KEY, "foo"),
+                        new Token(Type.SEPARATOR, "="),
+                        new Token(Type.VALUE, ""));
+    }
+
+    @Test
+    void testMissingSeparatorAndValueAtEof() throws IOException {
+        List<Token> tokens =
+                PropertiesParser.tokens(new StringReader("foo")).collect(Collectors.toList());
+
+        assertThat(tokens)
+                .containsExactly(
+                        new Token(Type.KEY, "foo"),
+                        new Token(Type.SEPARATOR, ""),
+                        new Token(Type.VALUE, ""));
     }
 }
