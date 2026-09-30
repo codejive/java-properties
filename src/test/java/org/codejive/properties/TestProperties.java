@@ -1159,6 +1159,21 @@ public class TestProperties {
         assertThat(sw.toString()).isEqualTo(expected);
     }
 
+    @Test
+    void testPutReplaceMissingSepOrValue() throws IOException, URISyntaxException {
+        final String given = "key1=val1\n" + "key2=\n" + "key3";
+        final String expected = "key1=value1\n" + "key2=value2\n" + "key3=value3";
+
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put("key1", "value1");
+        p.put("key2", "value2");
+        p.put("key3", "value3");
+
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo(expected);
+    }
+
     private Path getResource(String name) throws URISyntaxException {
         URL resource = getClass().getResource(name);
         if (resource == null)
