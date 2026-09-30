@@ -10,8 +10,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
 
@@ -1110,12 +1112,123 @@ public class TestProperties {
     }
 
     @Test
+    void testBeforeProperty() throws IOException {
+        Properties p =
+                Properties.loadProperties(
+                        new StringReader("# header\n\n  # attached\n  alpha=1\nbeta=2\n"));
+        Cursor beforeAlpha = p.beforeProperty("alpha");
+        assertThat(beforeAlpha).isNotNull();
+        assertThat(beforeAlpha.isWhitespace()).isTrue();
+        assertThat(beforeAlpha.raw()).isEqualTo("  ");
+
+        Cursor beforeBeta = p.beforeProperty("beta");
+        assertThat(beforeBeta).isNotNull();
+        assertThat(beforeBeta.isType(PropertiesParser.Type.KEY)).isTrue();
+        assertThat(beforeBeta.text()).isEqualTo("beta");
+
+        Properties noLeadingContent = Properties.loadProperties(new StringReader("alpha=1\n"));
+        assertThat(noLeadingContent.beforeProperty("alpha").position()).isZero();
+        assertThat(p.beforeProperty("missing")).isNull();
+        assertThat(new Properties().beforeProperty("missing")).isNull();
+
+        Properties duplicate = Properties.loadProperties(new StringReader("alpha=1\nalpha=2\n"));
+        assertThat(duplicate.beforeProperty("alpha").position()).isZero();
+    }
+
+    @Test
+    void testAfterProperty() throws IOException {
+        Properties p = Properties.loadProperties(new StringReader("alpha=1\nbeta=2\n# trailer\n"));
+        Cursor afterAlpha = p.afterProperty("alpha");
+        assertThat(afterAlpha).isNotNull();
+        assertThat(afterAlpha.isType(PropertiesParser.Type.KEY)).isTrue();
+        assertThat(afterAlpha.text()).isEqualTo("beta");
+
+        Cursor afterBeta = p.afterProperty("beta");
+        assertThat(afterBeta).isNotNull();
+        assertThat(afterBeta.isType(PropertiesParser.Type.COMMENT)).isTrue();
+        assertThat(afterBeta.raw()).isEqualTo("# trailer");
+
+        Properties noFinalEol = Properties.loadProperties(new StringReader("alpha=1"));
+        assertThat(noFinalEol.afterProperty("alpha").atEnd()).isTrue();
+
+        Properties keyOnly = Properties.loadProperties(new StringReader("alpha\nbeta=value"));
+        assertThat(keyOnly.afterProperty("alpha").text()).isEqualTo("beta");
+        assertThat(keyOnly.afterProperty("missing")).isNull();
+        assertThat(new Properties().afterProperty("missing")).isNull();
+
+        Properties crlf = Properties.loadProperties(new StringReader("alpha=1\r\nbeta=2\r\n"));
+        assertThat(crlf.afterProperty("alpha").text()).isEqualTo("beta");
+
+        Properties duplicate =
+                Properties.loadProperties(new StringReader("alpha=1\nbeta=2\nalpha=3"));
+        assertThat(duplicate.afterProperty("alpha").atEnd()).isTrue();
+    }
+
+    @Test
+    void testBeforeFirstProperty() throws IOException {
+        Properties withHeader =
+                Properties.loadProperties(
+                        new StringReader("# header\n\n  # attached\n  alpha=1\nbeta=2\n"));
+        Cursor beforeFirst = withHeader.beforeFirstProperty();
+        assertThat(beforeFirst.isWhitespace()).isTrue();
+        assertThat(beforeFirst.raw()).isEqualTo("  ");
+
+        Properties withoutHeader = Properties.loadProperties(new StringReader("alpha=1\nbeta=2"));
+        assertThat(withoutHeader.beforeFirstProperty().atStart()).isTrue();
+
+        Properties commentsOnly =
+                Properties.loadProperties(new StringReader("# header\n\n# another\n"));
+        assertThat(commentsOnly.beforeFirstProperty().atEnd()).isTrue();
+        assertThat(new Properties().beforeFirstProperty().atStart()).isTrue();
+    }
+
+    @Test
+    void testAfterLastProperty() throws IOException {
+        Properties withTrailer =
+                Properties.loadProperties(
+                        new StringReader("# header\nalpha=1\nbeta=2\n# trailer\n"));
+        Cursor afterLast = withTrailer.afterLastProperty();
+        assertThat(afterLast.isType(PropertiesParser.Type.COMMENT)).isTrue();
+        assertThat(afterLast.raw()).isEqualTo("# trailer");
+
+        Properties withBlankTrailer =
+                Properties.loadProperties(new StringReader("alpha=1\n\n# trailer\n"));
+        assertThat(withBlankTrailer.afterLastProperty().isEol()).isTrue();
+
+        Properties noFinalEol = Properties.loadProperties(new StringReader("alpha=1"));
+        assertThat(noFinalEol.afterLastProperty().atEnd()).isTrue();
+
+        Properties keyOnly = Properties.loadProperties(new StringReader("alpha\n"));
+        assertThat(keyOnly.afterLastProperty().atEnd()).isTrue();
+
+        Properties commentsOnly = Properties.loadProperties(new StringReader("# header\n\n"));
+        assertThat(commentsOnly.afterLastProperty().atStart()).isTrue();
+        assertThat(new Properties().afterLastProperty().atStart()).isTrue();
+    }
+
+    @Test
     void testCursor() throws IOException, URISyntaxException {
         Properties p = Properties.loadProperties(getResource("/test.properties"));
         Cursor c = p.first();
         assertThat(c.nextCount(t -> true)).isEqualTo(p.last().position() + 1);
         c = p.last();
         assertThat(c.prevCount(t -> true)).isEqualTo(p.last().position() + 1);
+    }
+
+    @Test
+    void testCursorHome() {
+        List<PropertiesParser.Token> tokens =
+                Arrays.asList(
+                        new PropertiesParser.Token(PropertiesParser.Type.KEY, "first"),
+                        new PropertiesParser.Token(PropertiesParser.Type.WHITESPACE, "\n"),
+                        new PropertiesParser.Token(PropertiesParser.Type.KEY, "second"),
+                        new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="),
+                        new PropertiesParser.Token(PropertiesParser.Type.VALUE, "value"));
+
+        assertThat(Cursor.first(tokens).home().position()).isZero();
+        assertThat(Cursor.index(tokens, 4).home().position()).isEqualTo(2);
+        assertThat(Cursor.index(tokens, 2).home().position()).isEqualTo(2);
+        assertThat(Cursor.last(tokens).next().home().position()).isEqualTo(tokens.size());
     }
 
     @Test

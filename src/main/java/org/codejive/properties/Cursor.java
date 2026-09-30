@@ -44,11 +44,11 @@ public class Cursor {
     }
 
     public boolean atStart() {
-        return index < 0;
+        return tokens.isEmpty() || index < 0;
     }
 
     public boolean atEnd() {
-        return index >= tokens.size();
+        return tokens.isEmpty() || index >= tokens.size();
     }
 
     public int position() {
@@ -174,7 +174,12 @@ public class Cursor {
      * @return a Cursor pointing to the start of the line
      */
     public Cursor home() {
-        prevWhile(tk -> !tk.isEol());
+        if (atEnd()) {
+            return this;
+        }
+        while (index > 0 && !tokens.get(index - 1).isEol()) {
+            prev();
+        }
         return this;
     }
 
