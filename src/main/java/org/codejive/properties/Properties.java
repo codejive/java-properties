@@ -437,17 +437,10 @@ public class Properties extends AbstractMap<String, String> {
         pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
     }
 
-    // Add new tokens to the end of the list of tokens
+    // Add a new property to the end of the list of tokens
     private Cursor addNewKeyValue(String rawKey, String key, String rawValue, String value) {
         Cursor pos = afterLastProperty();
-        // Add a newline whitespace token if necessary
-        if (!pos.atStart()) {
-            if (pos.isEol()) {
-                pos.next().addEol(eolType).prev();
-            } else {
-                pos.addEol(eolType);
-            }
-        } else {
+        if (pos.atStart()) {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
             // skipping any header comments
@@ -472,10 +465,52 @@ public class Properties extends AbstractMap<String, String> {
                 }
             }
         }
+        return addNewKeyValue(pos, rawKey, key, rawValue, value);
+    }
+
+    // Add a new property at the given position in the list of tokens
+    // NB: this method will make sure to move the cursor to a legal insertion point
+    private Cursor addNewKeyValue(
+            Cursor pos, String rawKey, String key, String rawValue, String value) {
+        if (pos == null) {
+            pos = afterLastProperty();
+        }
+
+        // Add a newline whitespace token if necessary
+        pos = prepareNewLine(pos);
+
         // Add tokens for key, separator and value
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.KEY, rawKey, key));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
+        return pos;
+    }
+
+    // Prepare the list for adding a new line at the given position. It will make sure the cursor
+    // is at a valid insertion point and that any required EOLs are added.
+    private Cursor prepareNewLine(Cursor pos) {
+        if (!isEmpty()) {
+            if (pos.atEnd()) {
+                // We're at the end of the list and we want to maintain the current structure.
+                // Meaning that if currently the last token is an EOL, we want to maintain that
+                // and make sure that after adding a new line, we still end with an EOL. But if
+                // there is no EOL, we add one because we need a separation between the last line
+                // and the new line, but we won't add an extra EOL at the end.
+                if (pos.copy().prev().isEol()) {
+                    pos.addEol(eolType).prev();
+                } else {
+                    pos.addEol(eolType);
+                }
+            } else if (pos.atStart()) {
+                // If we're at the start we always add a new line at the beginning. Even if there
+                // already was an EOL, because if it was there it was most likely meant as spacing.
+                pos.addEol(eolType).prev();
+            } else {
+                // If we're at any other position, we add a new line at the beginning of the line
+                // to maintain separation and move our insertion point right in front of it.
+                pos.home().addEol(eolType).prev();
+            }
+        }
         return pos;
     }
 
@@ -1054,8 +1089,8 @@ public class Properties extends AbstractMap<String, String> {
         Cursor pos =
                 first().nextWhile(
                                 tk ->
-                                        tk.getType() == PropertiesParser.Type.KEY
-                                                && !tk.getText().equals(key));
+                                        tk.getType() != PropertiesParser.Type.KEY
+                                                || !tk.getText().equals(key));
         if (pos.atEnd()) {
             return null;
         } else {
@@ -1075,11 +1110,17 @@ public class Properties extends AbstractMap<String, String> {
         Cursor pos =
                 last().prevWhile(
                                 tk ->
-                                        tk.getType() == PropertiesParser.Type.KEY
-                                                && !tk.getText().equals(key));
+                                        tk.getType() != PropertiesParser.Type.KEY
+                                                || !tk.getText().equals(key));
         if (pos.atStart()) {
             return null;
         } else {
+            // Skip over the separator and the value
+            pos.next();
+            validate(pos.isType(PropertiesParser.Type.SEPARATOR), pos);
+            pos.next();
+            validate(pos.isType(PropertiesParser.Type.VALUE), pos);
+            // Skip over the end-of-line if it exists
             if (pos.next().isEol()) {
                 pos.next();
             }
@@ -1121,7 +1162,7 @@ public class Properties extends AbstractMap<String, String> {
         // Make sure we're either at the start or we've found a property
         validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
         if (!pos.atStart()) {
-            pos.next();
+            pos.next().nextIf(Token::isEol);
         }
         return pos;
     }
