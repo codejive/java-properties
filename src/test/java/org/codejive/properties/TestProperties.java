@@ -798,6 +798,31 @@ public class TestProperties {
     }
 
     @Test
+    void testPutAtPosition() throws IOException {
+        Properties p = Properties.loadProperties(new StringReader("alpha=1\nbeta=2\n"));
+
+        assertThat(p.put(p.beforeProperty("beta"), "middle", "3")).isNull();
+
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("alpha=1\nmiddle=3\nbeta=2\n");
+        assertThat(p).containsEntry("middle", "3");
+    }
+
+    @Test
+    void testPutAtInvalidPosition() throws IOException {
+        Properties p = Properties.loadProperties(new StringReader("alpha=1\nbeta=2\n"));
+
+        Cursor separator = p.indexOf("beta").next();
+        assertThat(p.put(separator, "middle", "3")).isNull();
+
+        StringWriter sw = new StringWriter();
+        p.store(sw);
+        assertThat(sw.toString()).isEqualTo("alpha=1\nmiddle=3\nbeta=2\n");
+        assertThat(p).containsEntry("middle", "3");
+    }
+
+    @Test
     void testPutNewTest2() throws IOException, URISyntaxException {
         Path f = getResource("/test2.properties");
         Properties p = Properties.loadProperties(f);

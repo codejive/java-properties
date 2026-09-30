@@ -390,6 +390,50 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
+     * Associates the specified value with the specified key at the position indicated by the
+     * cursor. The cursor must point to the start of a line, or to the end of the token list. If the
+     * key already exists, its value is replaced at its existing position.
+     *
+     * @param pos position at which to insert the property
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @return the previous value associated with key, or null if there was no mapping for key
+     * @throws IllegalArgumentException if the cursor is not at a valid insertion position
+     */
+    public String put(Cursor pos, String key, String value) {
+        Objects.requireNonNull(pos, "pos");
+        if (key == null || value == null) {
+            throw new NullPointerException();
+        }
+        String rawValue = escapeValue(value);
+        if (values.containsKey(key)) {
+            replaceValue(key, rawValue, value);
+        } else {
+            String rawKey = escapeKey(key);
+            addNewKeyValue(pos, rawKey, key, rawValue, value);
+        }
+        return values.put(key, value);
+    }
+
+    /**
+     * Associates the specified value with the specified key at the position indicated by the
+     * cursor. The cursor must point to the start of a line, or to the end of the token list. If the
+     * key already exists, its value is replaced at its existing position. If any comment lines are
+     * supplied they will be prepended to the property.
+     *
+     * @param pos position at which to insert the property
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @param comment comment lines to be associated with the specified key
+     * @return the previous value associated with key, or null if there was no mapping for key
+     */
+    public String putCommented(Cursor pos, String key, String value, String... comment) {
+        String old = put(pos, key, value);
+        setComment(key, comment);
+        return old;
+    }
+
+    /**
      * Associates the specified value with the specified key in this properties table. If the
      * properties previously contained a mapping for the key, the old value is replaced. If any
      * comment lines are supplied they will be prepended to the property.
