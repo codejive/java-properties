@@ -209,7 +209,8 @@ public class PropertiesParser {
      */
     public Token nextToken() throws IOException {
         int ch = peekChar();
-        if (isEof(ch)) {
+        // A property at EOF may still need its empty separator and/or value token.
+        if (isEof(ch) && state == null) {
             return null;
         }
         Function<Integer, Boolean> isValid = (c) -> false;
