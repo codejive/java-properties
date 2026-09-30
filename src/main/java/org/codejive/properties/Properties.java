@@ -441,9 +441,16 @@ public class Properties extends AbstractMap<String, String> {
     private void replaceValue(String key, String rawValue, String value) {
         Cursor pos = indexOf(key);
         validate(pos.nextIf(PropertiesParser.Type.KEY), pos);
-        validate(pos.nextIf(PropertiesParser.Type.SEPARATOR), pos);
-        validate(pos.isType(PropertiesParser.Type.VALUE), pos);
-        pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
+        if (!pos.isType(PropertiesParser.Type.SEPARATOR)) {
+            pos.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
+        } else {
+            pos.next();
+        }
+        if (pos.isType(PropertiesParser.Type.VALUE)) {
+            pos.replace(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
+        } else {
+            pos.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
+        }
     }
 
     // Add new tokens to the end of the list of tokens
