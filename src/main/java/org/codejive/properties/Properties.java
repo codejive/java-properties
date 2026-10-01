@@ -526,7 +526,7 @@ public class Properties extends AbstractMap<String, String> {
     // Prepare the list for adding a new line at the given position. It will make sure the cursor
     // is at a valid insertion point and that any required EOLs are added.
     private Cursor prepareNewLine(Cursor pos) {
-        if (!isEmpty()) {
+        if (!tokens.isEmpty()) {
             if (pos.atEnd()) {
                 // We're at the end of the list and we want to maintain the current structure.
                 // Meaning that if currently the last token is an EOL, we want to maintain that
