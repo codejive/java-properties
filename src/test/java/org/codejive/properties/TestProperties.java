@@ -1195,8 +1195,7 @@ public class TestProperties {
                 Properties.loadProperties(
                         new StringReader("# header\n\n  # attached\n  alpha=1\nbeta=2\n"));
         Cursor beforeFirst = withHeader.beforeFirstProperty();
-        assertThat(beforeFirst.position())
-                .isEqualTo(withHeader.beforeProperty("alpha").position() - 3);
+        assertThat(beforeFirst.position()).isEqualTo(withHeader.beforeProperty("alpha").position());
         assertThat(beforeFirst.raw()).isEqualTo("  ");
 
         Properties withoutHeader = Properties.loadProperties(new StringReader("alpha=1\nbeta=2"));
@@ -1356,6 +1355,18 @@ public class TestProperties {
                 input += eol;
             }
         }
+    }
+
+    @Test
+    void testPutBeforeIndentedProperty() throws IOException {
+        final String given = "# header comment\n" + "\n" + "  # key comment\n" + "  key=val";
+        final String expected =
+                "# header comment\n" + "\n" + "put=putVal\n" + "  # key comment\n" + "  key=val";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.beforeProperty("key"), "put", "putVal");
+        expectStoreText(p, expected);
+        assertThat(p.getComment("key")).containsExactly("# key comment");
+        assertThat(p.getComment("put")).isEmpty();
     }
 
     private void expectStoreText(Properties props, String expectedText) throws IOException {
