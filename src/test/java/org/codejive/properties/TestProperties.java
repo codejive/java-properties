@@ -1394,6 +1394,24 @@ public class TestProperties {
         expectStoreText(p, "put=putVal\r\n  # header\r\n");
     }
 
+    @Test
+    void testPutLastLine() throws IOException {
+        final String given = "key=val\n" + "# trailer comment";
+        final String expected = "key=val\n" + "# trailer comment\n" + "\n" + "put=putVal";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.last().next(), "put", "putVal");
+        expectStoreText(p, expected);
+        assertThat(p.getComment("put")).isEmpty();
+    }
+
+    @Test
+    void testPutLastLineWithFinalEol() throws IOException {
+        Properties p = Properties.loadProperties(new StringReader("key=val\r\n  # trailer\r\n"));
+        p.put(p.last().next(), "put", "putVal");
+        expectStoreText(p, "key=val\r\n  # trailer\r\n\r\nput=putVal\r\n");
+        assertThat(p.getComment("put")).isEmpty();
+    }
+
     private void expectStoreText(Properties props, String expectedText) throws IOException {
         StringWriter sw = new StringWriter();
         props.store(sw);

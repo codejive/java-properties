@@ -513,14 +513,35 @@ public class Properties extends AbstractMap<String, String> {
             pos = afterLastProperty();
         }
 
+        boolean afterFinalComment = isAfterFinalComment(pos);
+
         // Add a newline whitespace token if necessary
         pos = prepareNewLine(pos);
+
+        if (afterFinalComment) {
+            // Keep a trailing comment free rather than attaching it to the new key.
+            pos.addEol(eolType);
+        }
 
         // Add tokens for key, separator and value
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.KEY, rawKey, key));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.SEPARATOR, "="));
         pos.add(new PropertiesParser.Token(PropertiesParser.Type.VALUE, rawValue, value));
         return pos;
+    }
+
+    // Returns true only at the end of the token list when the last token is a comment,
+    // optionally followed by one EOL. An existing blank line after the comment returns false.
+    // Uses a copy so the insertion cursor is not moved.
+    private boolean isAfterFinalComment(Cursor pos) {
+        if (!pos.atEnd()) {
+            return false;
+        }
+        Cursor previous = pos.copy().prev();
+        if (previous.isEol()) {
+            previous.prev();
+        }
+        return previous.isType(PropertiesParser.Type.COMMENT);
     }
 
     // Prepare the list for adding a new line at the given position. It will make sure the cursor
