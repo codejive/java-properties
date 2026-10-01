@@ -23,5 +23,5 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
-    - name: Build with Maven
-      run: mvn -B spotless:apply package --file pom.xml
+    - name: Check formatting and build with Maven
+      run: mvn -B spotless:check package --file pom.xml
