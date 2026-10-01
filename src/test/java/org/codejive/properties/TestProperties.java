@@ -1369,6 +1369,31 @@ public class TestProperties {
         assertThat(p.getComment("put")).isEmpty();
     }
 
+    @Test
+    void testPutFirstLineHeaderOnlyFile() throws IOException {
+        final String given = "# header";
+        final String expected = "put=putVal\n" + "# header";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.first(), "put", "putVal");
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutFirstLine() throws IOException {
+        final String given = "# header\n" + "\n" + "key=val";
+        final String expected = "put=putVal\n" + "# header\n" + "\n" + "key=val";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.first(), "put", "putVal");
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutFirstLineHeaderOnlyCrLf() throws IOException {
+        Properties p = Properties.loadProperties(new StringReader("  # header\r\n"));
+        p.put(p.first(), "put", "putVal");
+        expectStoreText(p, "put=putVal\r\n  # header\r\n");
+    }
+
     private void expectStoreText(Properties props, String expectedText) throws IOException {
         StringWriter sw = new StringWriter();
         props.store(sw);
