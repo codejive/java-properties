@@ -1116,8 +1116,8 @@ public class Properties extends AbstractMap<String, String> {
     /**
      * Returns a Cursor pointing to the position right before the property with the given key. If no
      * such property exists, {@code null} will be returned. If the property was found the position
-     * will take into account any leading whitespace and will be positioned at the start of the
-     * line.
+     * will take into account any attached comments and leading whitespace and will be positioned at
+     * the start of the first attached comment line, or the property line if there are no comments.
      *
      * @param key The name of property to look for
      * @return a Cursor pointing to the right position or {@code null} if not found
@@ -1131,8 +1131,13 @@ public class Properties extends AbstractMap<String, String> {
         if (pos.atEnd()) {
             return null;
         } else {
-            return pos.home();
+            return beforePropertyComments(pos);
         }
+    }
+
+    private Cursor beforePropertyComments(Cursor pos) {
+        List<Integer> comments = findPropertyCommentLines(pos);
+        return comments.isEmpty() ? pos.home() : index(comments.get(0)).home();
     }
 
     /**
@@ -1179,8 +1184,7 @@ public class Properties extends AbstractMap<String, String> {
         // Make sure we're either at the end or we've found a property
         validate(pos.atEnd() || pos.isType(PropertiesParser.Type.KEY), pos);
         if (!pos.atEnd()) {
-            List<Integer> comments = findPropertyCommentLines(pos);
-            pos = comments.isEmpty() ? pos.home() : index(comments.get(0)).home();
+            pos = beforePropertyComments(pos);
         }
         return pos;
     }
