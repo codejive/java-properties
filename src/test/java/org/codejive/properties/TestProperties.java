@@ -1195,11 +1195,12 @@ public class TestProperties {
                 Properties.loadProperties(
                         new StringReader("# header\n\n  # attached\n  alpha=1\nbeta=2\n"));
         Cursor beforeFirst = withHeader.beforeFirstProperty();
-        assertThat(beforeFirst.isWhitespace()).isTrue();
+        assertThat(beforeFirst.position())
+                .isEqualTo(withHeader.beforeProperty("alpha").position() - 3);
         assertThat(beforeFirst.raw()).isEqualTo("  ");
 
         Properties withoutHeader = Properties.loadProperties(new StringReader("alpha=1\nbeta=2"));
-        assertThat(withoutHeader.beforeFirstProperty().atStart()).isTrue();
+        assertThat(withoutHeader.beforeFirstProperty().position()).isZero();
 
         Properties commentsOnly =
                 Properties.loadProperties(new StringReader("# header\n\n# another\n"));
@@ -1310,6 +1311,57 @@ public class TestProperties {
         StringWriter sw = new StringWriter();
         p.store(sw);
         assertThat(sw.toString()).isEqualTo(expected);
+    }
+
+    @Test
+    void testPutBeforeFirstProperty() throws IOException {
+        final String given = "# header comment\n" + "\n" + "key=val";
+        final String expected = "# header comment\n" + "\n" + "put=putVal\n" + "key=val";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.beforeFirstProperty(), "put", "putVal");
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutBeforeFirstPropertyWithComment() throws IOException {
+        final String given = "# header comment\n" + "\n" + "# key comment\n" + "key=val";
+        final String expected =
+                "# header comment\n" + "\n" + "put=putVal\n" + "# key comment\n" + "key=val";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.beforeFirstProperty(), "put", "putVal");
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testPutAfterHeader() throws IOException {
+        final String given = "# header comment\n" + "\n" + "key=val";
+        final String expected = "# header comment\n" + "\n" + "put=putVal\n" + "key=val";
+        Properties p = Properties.loadProperties(new StringReader(given));
+        p.put(p.afterHeader(), "put", "putVal");
+        expectStoreText(p, expected);
+    }
+
+    @Test
+    void testAfterHeaderLeavesAtMostOneBlankLine() throws IOException {
+        for (String eol : Arrays.asList("\n", "\r\n")) {
+            String input = "# header";
+            for (int lineEndings = 0; lineEndings <= 3; lineEndings++) {
+                Properties p = Properties.loadProperties(new StringReader(input));
+                assertThat(p.afterHeader().position()).isEqualTo(1 + Math.min(lineEndings, 2));
+                if (lineEndings == 3) {
+                    assertThat(p.afterHeader().isEol()).isTrue();
+                } else {
+                    assertThat(p.afterHeader().atEnd()).isTrue();
+                }
+                input += eol;
+            }
+        }
+    }
+
+    private void expectStoreText(Properties props, String expectedText) throws IOException {
+        StringWriter sw = new StringWriter();
+        props.store(sw);
+        assertThat(sw.toString()).isEqualTo(expectedText);
     }
 
     private Path getResource(String name) throws URISyntaxException {
