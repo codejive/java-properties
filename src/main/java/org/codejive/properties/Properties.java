@@ -488,24 +488,17 @@ public class Properties extends AbstractMap<String, String> {
             // We're at the start, meaning there are no properties yet,
             // but there might be comments, so we move forward again,
             // skipping any header comments
-            // (*) = we'll always skip past the final comment's EOL
             pos = afterHeader();
-            if (!pos.atStart()) {
-                // We have to make sure there are at least 2 EOLs after the last comment
-                if (pos.atEnd()) {
-                    Cursor pp = last();
-                    if (pp.isType(PropertiesParser.Type.COMMENT)) {
-                        // If the last token is a comment, we're short two EOLs
-                        pos.addEol(eolType);
-                        pos.addEol(eolType);
-                    } else if (pp.isEol()) {
-                        // If the last element is an EOL we still need one (*)
-                        pos.addEol(eolType);
-                    }
-                } else if (pos.isEol()) {
-                    // If the current element is an EOL we know there are at least 2 (*),
-                    // so we can simply move past it
-                    pos.next();
+            if (pos.atEnd()) {
+                // afterHeader() leaves at most one blank line after the last comment.
+                // Add only the missing line endings needed to keep the header free.
+                Cursor previous = pos.copy().prev();
+                if (previous.isType(PropertiesParser.Type.COMMENT)) {
+                    pos.addEol(eolType);
+                    pos.addEol(eolType);
+                } else if (previous.isEol()
+                        && previous.prev().isType(PropertiesParser.Type.COMMENT)) {
+                    pos.addEol(eolType);
                 }
             }
         }
@@ -1186,7 +1179,8 @@ public class Properties extends AbstractMap<String, String> {
         // Make sure we're either at the end or we've found a property
         validate(pos.atEnd() || pos.isType(PropertiesParser.Type.KEY), pos);
         if (!pos.atEnd()) {
-            pos.prev();
+            List<Integer> comments = findPropertyCommentLines(pos);
+            pos = comments.isEmpty() ? pos.home() : index(comments.get(0)).home();
         }
         return pos;
     }
@@ -1212,8 +1206,9 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns a Cursor pointing to the position right after the last comment in the header. If no
-     * header comments are found, the cursor will point to the start of the file.
+     * Returns a Cursor pointing to the position after the last comment in the header, leaving a
+     * single empty separating line in between (if it exists). If no header comments are found, the
+     * cursor will be at the start of the list.
      *
      * @return a Cursor pointing to the right position
      */
@@ -1233,6 +1228,8 @@ public class Properties extends AbstractMap<String, String> {
             pos = first();
         } else {
             pos.home();
+            // Leave at most one empty line between the header and the cursor.
+            pos.nextIf(PropertiesParser.Token::isEol);
         }
         return pos;
     }
