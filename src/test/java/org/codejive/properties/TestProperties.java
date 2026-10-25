@@ -823,6 +823,14 @@ public class TestProperties {
     }
 
     @Test
+    void testCommentEndingWithBackslash() throws IOException {
+        Properties p =
+                Properties.loadProperties(new StringReader("# temp dir: C:\\temp\\\nalpha=1\n"));
+
+        assertThat(p).containsEntry("alpha", "1");
+    }
+
+    @Test
     void testPutNewTest2() throws IOException, URISyntaxException {
         Path f = getResource("/test2.properties");
         Properties p = Properties.loadProperties(f);

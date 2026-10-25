@@ -269,7 +269,8 @@ public class PropertiesParser {
 
     private void addChar(int ch) throws IOException {
         str.append((char) ch);
-        if (ch == '\\') {
+        // Comments have no escapes or line continuations
+        if (ch == '\\' && state != Type.COMMENT) {
             hasEscapes = true;
             int ch2 = readChar();
             if (isEof(ch2)) {
