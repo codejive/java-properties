@@ -272,6 +272,10 @@ public class PropertiesParser {
         if (ch == '\\') {
             hasEscapes = true;
             int ch2 = readChar();
+            if (isEof(ch2)) {
+                // A backslash at the end of the input escapes nothing
+                return;
+            }
             str.append((char) ch2);
             if (ch2 == 'u') {
                 for (int i = 0; i < 4; i++) {
@@ -315,6 +319,9 @@ public class PropertiesParser {
         for (int i = 0; i < escape.length(); i++) {
             char ch = escape.charAt(i);
             if (ch == '\\') {
+                if (i == escape.length() - 1) {
+                    break;
+                }
                 ch = escape.charAt(++i);
                 switch (ch) {
                     case 't':

@@ -131,4 +131,16 @@ public class TestPropertiesParser {
                         new Token(Type.SEPARATOR, ""),
                         new Token(Type.VALUE, ""));
     }
+
+    @Test
+    void testBackslashAtEof() throws IOException {
+        List<Token> tokens =
+                PropertiesParser.tokens(new StringReader("foo=bar\\")).collect(Collectors.toList());
+
+        assertThat(tokens)
+                .containsExactly(
+                        new Token(Type.KEY, "foo"),
+                        new Token(Type.SEPARATOR, "="),
+                        new Token(Type.VALUE, "bar\\", "bar"));
+    }
 }
