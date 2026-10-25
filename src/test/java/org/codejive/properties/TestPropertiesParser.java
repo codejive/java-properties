@@ -109,6 +109,21 @@ public class TestPropertiesParser {
     }
 
     @Test
+    void testBackslashesInComment() throws IOException {
+        List<Token> tokens =
+                PropertiesParser.tokens(new StringReader("# C:\\users\\\nfoo=bar"))
+                        .collect(Collectors.toList());
+
+        assertThat(tokens)
+                .containsExactly(
+                        new Token(Type.COMMENT, "# C:\\users\\"),
+                        new Token(Type.WHITESPACE, "\n"),
+                        new Token(Type.KEY, "foo"),
+                        new Token(Type.SEPARATOR, "="),
+                        new Token(Type.VALUE, "bar"));
+    }
+
+    @Test
     void testEmptySeparatorAndValueAtEof() throws IOException {
         List<Token> tokens =
                 PropertiesParser.tokens(new StringReader("foo=")).collect(Collectors.toList());
