@@ -1439,6 +1439,18 @@ public class TestProperties {
     }
 
     @Test
+    void testRoundTripContinuedUnicodeKey() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-unicode-key.properties");
+        assertThat(p).containsEntry("\u1234", "value").hasSize(1);
+    }
+
+    @Test
+    void testRoundTripContinuedUnicodeValue() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-unicode-value.properties");
+        assertThat(p).containsEntry("key", "\u1234").hasSize(1);
+    }
+
+    @Test
     void testRoundTripPendingBackslashAtEof() throws IOException, URISyntaxException {
         Properties p = assertByteExactRoundTrip("/roundtrip-backslash-eof.properties");
         assertThat(p).containsEntry("key", "").hasSize(1);
