@@ -318,21 +318,11 @@ public class PropertiesParser {
                 return;
             }
             str.append((char) ch2);
-            if (ch2 == 'u') {
-                for (int i = 0; i < 4; i++) {
-                    int chu = readChar();
-                    if (!isHexDigitChar(chu)) {
-                        throw new IOException("Invalid unicode escape character: " + chu);
-                    }
-                    str.append((char) chu);
-                }
-            } else {
-                readEol(ch2);
-                if (isEol(ch2)) {
-                    // A line continuation also skips the leading whitespace of the next line
-                    while (isWhitespaceChar(peekChar())) {
-                        str.append((char) readChar());
-                    }
+            readEol(ch2);
+            if (isEol(ch2)) {
+                // A line continuation also skips the leading whitespace of the next line
+                while (isWhitespaceChar(peekChar())) {
+                    str.append((char) readChar());
                 }
             }
         } else {
@@ -362,6 +352,7 @@ public class PropertiesParser {
      * @return Decoded string
      */
     public static String unescape(String escape) {
+        escape = removeContinuations(escape);
         StringBuilder txt = new StringBuilder();
         for (int i = 0; i < escape.length(); i++) {
             char ch = escape.charAt(i);
@@ -410,6 +401,30 @@ public class PropertiesParser {
             }
         }
         return txt.toString();
+    }
+
+    private static String removeContinuations(String raw) {
+        StringBuilder logical = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char ch = raw.charAt(i);
+            if (ch == '\\' && i + 1 < raw.length()) {
+                char next = raw.charAt(++i);
+                if (isEol(next)) {
+                    if (next == '\r' && i + 1 < raw.length() && raw.charAt(i + 1) == '\n') {
+                        i++;
+                    }
+                    while (i + 1 < raw.length() && isWhitespaceChar(raw.charAt(i + 1))) {
+                        i++;
+                    }
+                } else {
+                    // Consume escape pairs together to preserve backslash parity.
+                    logical.append(ch).append(next);
+                }
+            } else {
+                logical.append(ch);
+            }
+        }
+        return logical.toString();
     }
 
     public static boolean isSeparatorChar(int ch) {

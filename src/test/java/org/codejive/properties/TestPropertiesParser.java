@@ -208,6 +208,19 @@ public class TestPropertiesParser {
     }
 
     @Test
+    void testContinuedUnicodeEscapes() throws IOException {
+        for (String eol : new String[] {"\n", "\r", "\r\n"}) {
+            for (int split = 2; split < 6; split++) {
+                String escape = "\\u1234";
+                String continued =
+                        escape.substring(0, split) + "\\" + eol + " \t\f" + escape.substring(split);
+                assertLoadsLikeJava(continued + "=" + continued);
+                assertThat(PropertiesParser.unescape(continued)).isEqualTo("\u1234");
+            }
+        }
+    }
+
+    @Test
     void testBackslashParity() throws IOException {
         for (String eol : new String[] {"\n", "\r", "\r\n"}) {
             for (int count = 0; count < 8; count++) {
