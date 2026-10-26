@@ -166,6 +166,8 @@ public class PropertiesParser {
     private boolean separatorSeen;
     private StringBuilder str;
     private boolean hasEscapes;
+    private boolean hasLogicalContent;
+    private boolean continuationPadding;
 
     /**
      * Constructor that takes a <code>Reader</code> for reading the input to parse.
@@ -246,6 +248,14 @@ public class PropertiesParser {
                     }
                     break;
                 case KEY:
+                    // A continuation-only prefix is formatting before a comment or blank line.
+                    if (!hasLogicalContent
+                            && str.length() > 0
+                            && (isCommentChar(ch)
+                                    || isEol(ch)
+                                    || (isEof(ch) && continuationPadding))) {
+                        return finishToken(Type.WHITESPACE, State.START);
+                    }
                     if (isSeparatorChar(ch) || isWhitespaceEolChar(ch) || isEof(ch)) {
                         return finishToken(Type.KEY, State.SEPARATOR);
                     }
@@ -293,6 +303,7 @@ public class PropertiesParser {
         String raw = string();
         Token token = hasEscapes ? new Token(type, raw, unescape(raw)) : new Token(type, raw);
         hasEscapes = false;
+        hasLogicalContent = false;
         state = nextState;
         return token;
     }
@@ -315,17 +326,25 @@ public class PropertiesParser {
             int ch2 = readChar();
             if (isEof(ch2)) {
                 // A backslash at the end of the input escapes nothing
+                hasLogicalContent = true;
                 return;
             }
             str.append((char) ch2);
+            // Match the JDK's empty-line handling at EOF: a bare continuation
+            // creates an empty property, but skipped LF/indentation leaves a blank line.
+            continuationPadding = ch2 == '\r' && peekChar() == '\n';
             readEol(ch2);
             if (isEol(ch2)) {
-                // A line continuation also skips the leading whitespace of the next line
+                // Decode escapes only after the entire logical token has been read.
                 while (isWhitespaceChar(peekChar())) {
+                    continuationPadding = true;
                     str.append((char) readChar());
                 }
+            } else {
+                hasLogicalContent = true;
             }
         } else {
+            hasLogicalContent = true;
             readEol(ch);
         }
     }

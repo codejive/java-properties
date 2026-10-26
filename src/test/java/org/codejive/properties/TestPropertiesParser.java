@@ -234,6 +234,22 @@ public class TestPropertiesParser {
     }
 
     @Test
+    void testEmptyContinuationPrefixes() throws IOException {
+        for (String eol : new String[] {"\n", "\r", "\r\n"}) {
+            for (String tail :
+                    new String[] {"#comment", "!comment", "", " \t\f", "key=value", "=value"}) {
+                assertLoadsLikeJava("\\" + eol + tail + eol + "k=v");
+                assertLoadsLikeJava(" \\" + eol + "\t\\" + eol + tail + eol + "k=v");
+            }
+            assertLoadsLikeJava("\\" + eol);
+            assertLoadsLikeJava("\\" + eol + " \t\f");
+            assertLoadsLikeJava("\\" + eol + "\\\n");
+            assertLoadsLikeJava("key=one\\" + eol + " #two");
+        }
+        assertLoadsLikeJava("\\");
+    }
+
+    @Test
     void testBackslashParity() throws IOException {
         for (String eol : new String[] {"\n", "\r", "\r\n"}) {
             for (int count = 0; count < 8; count++) {

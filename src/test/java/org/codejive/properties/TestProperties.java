@@ -1451,9 +1451,27 @@ public class TestProperties {
     }
 
     @Test
+    void testRoundTripEmptyContinuationBeforeComment() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-comment.properties");
+        assertThat(p).containsEntry("key", "value").hasSize(1);
+    }
+
+    @Test
+    void testRoundTripEmptyContinuationBeforeBlankLine() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-blank.properties");
+        assertThat(p).containsEntry("key", "value").hasSize(1);
+    }
+
+    @Test
     void testRoundTripPendingBackslashAtEof() throws IOException, URISyntaxException {
         Properties p = assertByteExactRoundTrip("/roundtrip-backslash-eof.properties");
         assertThat(p).containsEntry("key", "").hasSize(1);
+    }
+
+    @Test
+    void testRoundTripEmptyContinuationAtEof() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-continuation-eof.properties");
+        assertThat(p).isEmpty();
     }
 
     private Properties assertByteExactRoundTrip(String resource)
