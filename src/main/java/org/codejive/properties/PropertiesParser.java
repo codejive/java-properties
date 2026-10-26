@@ -375,6 +375,14 @@ public class PropertiesParser {
                         txt.append('\r');
                         break;
                     case 'u':
+                        if (i + 4 >= escape.length()) {
+                            throw new IllegalArgumentException("Malformed Unicode escape");
+                        }
+                        for (int j = i + 1; j <= i + 4; j++) {
+                            if (!isHexDigitChar(escape.charAt(j))) {
+                                throw new IllegalArgumentException("Malformed Unicode escape");
+                            }
+                        }
                         String num = escape.substring(i + 1, i + 5);
                         txt.append((char) Integer.parseInt(num, 16));
                         i += 4;
@@ -444,8 +452,7 @@ public class PropertiesParser {
     }
 
     private static boolean isHexDigitChar(int ch) {
-        int uch = Character.toUpperCase(ch);
-        return Character.isDigit(ch) || (uch >= 'A' && uch <= 'F');
+        return (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
     }
 
     private static boolean isEol(int ch) {
