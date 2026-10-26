@@ -124,6 +124,19 @@ public class TestPropertiesParser {
     }
 
     @Test
+    void testLineContinuationInKey() throws IOException {
+        List<Token> tokens =
+                PropertiesParser.tokens(new StringReader("key\\\n  part=value"))
+                        .collect(Collectors.toList());
+
+        assertThat(tokens)
+                .containsExactly(
+                        new Token(Type.KEY, "key\\\n  part", "keypart"),
+                        new Token(Type.SEPARATOR, "="),
+                        new Token(Type.VALUE, "value"));
+    }
+
+    @Test
     void testEmptySeparatorAndValueAtEof() throws IOException {
         List<Token> tokens =
                 PropertiesParser.tokens(new StringReader("foo=")).collect(Collectors.toList());

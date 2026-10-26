@@ -288,6 +288,12 @@ public class PropertiesParser {
                 }
             } else {
                 readEol(ch2);
+                if (isEol(ch2)) {
+                    // A line continuation also skips the leading whitespace of the next line
+                    while (isWhitespaceChar(peekChar())) {
+                        str.append((char) readChar());
+                    }
+                }
             }
         } else {
             readEol(ch);
