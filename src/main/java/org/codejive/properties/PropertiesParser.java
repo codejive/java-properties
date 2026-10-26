@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Objects;
 import java.util.Spliterators;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -153,8 +150,20 @@ public class PropertiesParser {
 
     private final Reader rdr;
 
-    private Type state;
+    private enum State {
+        START,
+        COMMENT,
+        WHITESPACE,
+        KEY,
+        SEPARATOR,
+        SEPARATOR_BACKSLASH,
+        VALUE_BACKSLASH,
+        VALUE
+    }
+
+    private State state;
     private int pch;
+    private boolean separatorSeen;
     private StringBuilder str;
     private boolean hasEscapes;
 
@@ -166,7 +175,7 @@ public class PropertiesParser {
      */
     public PropertiesParser(Reader rdr) throws IOException {
         this.rdr = rdr;
-        state = null;
+        state = State.START;
         str = new StringBuilder();
         readChar();
     }
@@ -208,53 +217,84 @@ public class PropertiesParser {
      * @throws IOException Thrown when any IO error occurs during parsing
      */
     public Token nextToken() throws IOException {
-        int ch = peekChar();
-        // A property at EOF may still need its empty separator and/or value token.
-        if (isEof(ch) && state == null) {
-            return null;
-        }
-        Function<Integer, Boolean> isValid = (c) -> false;
-        Type nextState = null;
-        if (state == null) {
-            if (isCommentChar(ch)) {
-                state = Type.COMMENT;
-                isValid = (c) -> !isEol(c) && !isEof(c);
-            } else if (isWhitespaceEolChar(ch)) {
-                state = Type.WHITESPACE;
-                final AtomicInteger oldc = new AtomicInteger(-1);
-                isValid = (c) -> isWhitespaceEolChar(c) && !isEol(oldc.getAndSet(c));
-            } else {
-                state = Type.KEY;
-                isValid =
-                        (c) ->
-                                !isSeparatorChar(c)
-                                        && !isWhitespaceChar(c)
-                                        && !isEol(c)
-                                        && !isEof(c);
-                nextState = Type.SEPARATOR;
-            }
-        } else if (state == Type.SEPARATOR) {
-            final AtomicBoolean once = new AtomicBoolean(true);
-            isValid = (c) -> isWhitespaceChar(c) || (isSeparatorChar(c) && once.getAndSet(false));
-            nextState = Type.VALUE;
-        } else if (state == Type.VALUE) {
-            isValid = (c) -> !isEol(c) && !isEof(c);
-        }
         while (true) {
-            if (isValid.apply(ch)) {
-                addChar(readChar());
-                ch = peekChar();
-            } else {
-                String text = string();
-                Token token =
-                        hasEscapes
-                                ? new Token(state, text, unescape(text))
-                                : new Token(state, text);
-                hasEscapes = false;
-                state = nextState;
-                return token;
+            int ch = peekChar();
+            switch (state) {
+                case START:
+                    if (isEof(ch)) {
+                        return null;
+                    }
+                    separatorSeen = false;
+                    state =
+                            isCommentChar(ch)
+                                    ? State.COMMENT
+                                    : isWhitespaceEolChar(ch) ? State.WHITESPACE : State.KEY;
+                    break;
+                case COMMENT:
+                    if (isEol(ch) || isEof(ch)) {
+                        return finishToken(Type.COMMENT, State.START);
+                    }
+                    addChar(readChar());
+                    break;
+                case WHITESPACE:
+                    if (!isWhitespaceEolChar(ch)) {
+                        return finishToken(Type.WHITESPACE, State.START);
+                    }
+                    addChar(readChar());
+                    if (isEol(ch)) {
+                        return finishToken(Type.WHITESPACE, State.START);
+                    }
+                    break;
+                case KEY:
+                    if (isSeparatorChar(ch) || isWhitespaceEolChar(ch) || isEof(ch)) {
+                        return finishToken(Type.KEY, State.SEPARATOR);
+                    }
+                    addChar(readChar());
+                    break;
+                case SEPARATOR:
+                    if (ch == '\\') {
+                        // Consume the backslash, but defer which token owns it.
+                        readChar();
+                        state = State.SEPARATOR_BACKSLASH;
+                    } else if (isWhitespaceChar(ch)) {
+                        addChar(readChar());
+                    } else if (isSeparatorChar(ch) && !separatorSeen) {
+                        separatorSeen = true;
+                        addChar(readChar());
+                    } else {
+                        return finishToken(Type.SEPARATOR, State.VALUE);
+                    }
+                    break;
+                case SEPARATOR_BACKSLASH:
+                    if (isEol(ch)) {
+                        // The pending backslash belongs to a separator continuation.
+                        addChar('\\');
+                        state = State.SEPARATOR;
+                    } else {
+                        // Carry the pending backslash into the next token, including at EOF.
+                        return finishToken(Type.SEPARATOR, State.VALUE_BACKSLASH);
+                    }
+                    break;
+                case VALUE_BACKSLASH:
+                    addChar('\\');
+                    state = State.VALUE;
+                    break;
+                case VALUE:
+                    if (isEol(ch) || isEof(ch)) {
+                        return finishToken(Type.VALUE, State.START);
+                    }
+                    addChar(readChar());
+                    break;
             }
         }
+    }
+
+    private Token finishToken(Type type, State nextState) {
+        String raw = string();
+        Token token = hasEscapes ? new Token(type, raw, unescape(raw)) : new Token(type, raw);
+        hasEscapes = false;
+        state = nextState;
+        return token;
     }
 
     private int peekChar() {
@@ -270,7 +310,7 @@ public class PropertiesParser {
     private void addChar(int ch) throws IOException {
         str.append((char) ch);
         // Comments have no escapes or line continuations
-        if (ch == '\\' && state != Type.COMMENT) {
+        if (ch == '\\' && state != State.COMMENT) {
             hasEscapes = true;
             int ch2 = readChar();
             if (isEof(ch2)) {

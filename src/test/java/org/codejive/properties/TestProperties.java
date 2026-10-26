@@ -1428,6 +1428,36 @@ public class TestProperties {
         assertThat(p.getComment("put")).isEmpty();
     }
 
+    @Test
+    void testRoundTripContinuedSeparators() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-separators.properties");
+        assertThat(p)
+                .containsEntry("equals", "value")
+                .containsEntry("colon", "value")
+                .containsEntry("alreadySeparated", ":value");
+        assertThat(p).hasSize(3);
+    }
+
+    @Test
+    void testRoundTripPendingBackslashAtEof() throws IOException, URISyntaxException {
+        Properties p = assertByteExactRoundTrip("/roundtrip-backslash-eof.properties");
+        assertThat(p).containsEntry("key", "").hasSize(1);
+    }
+
+    private Properties assertByteExactRoundTrip(String resource)
+            throws IOException, URISyntaxException {
+        Path file = getResource(resource);
+        byte[] original = Files.readAllBytes(file);
+        Properties p = new Properties();
+        try (InputStream input = Files.newInputStream(file)) {
+            p.load(input);
+        }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        p.store(output);
+        assertThat(output.toByteArray()).as("Exact bytes of %s", resource).isEqualTo(original);
+        return p;
+    }
+
     private void expectStoreText(Properties props, String expectedText) throws IOException {
         StringWriter sw = new StringWriter();
         props.store(sw);

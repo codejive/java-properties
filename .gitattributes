@@ -1,2 +1,4 @@
 * text eol=lf
 src/test/resources/testcrlf* text eol=crlf
+# Preserve the exact line endings and EOF bytes used by round-trip regression fixtures.
+src/test/resources/roundtrip-*.properties -text

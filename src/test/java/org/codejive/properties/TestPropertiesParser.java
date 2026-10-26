@@ -171,4 +171,70 @@ public class TestPropertiesParser {
                         new Token(Type.SEPARATOR, "="),
                         new Token(Type.VALUE, "bar\\", "bar"));
     }
+
+    @Test
+    void testPendingBackslashBelongsToValue() throws IOException {
+        for (String separator : new String[] {" ", "=", " : ", " \\\r\n = "}) {
+            for (String rawValue :
+                    new String[] {"\\", "\\t", "\\=value", "\\ value", "\\\\tail", "\\u1234"}) {
+                String input = "key" + separator + rawValue;
+                PropertiesParser parser = new PropertiesParser(new StringReader(input));
+                assertThat(parser.nextToken()).isEqualTo(new Token(Type.KEY, "key"));
+                Token separatorToken = parser.nextToken();
+                assertThat(separatorToken.getType()).isEqualTo(Type.SEPARATOR);
+                assertThat(separatorToken.getRaw()).isEqualTo(separator);
+                Token valueToken = parser.nextToken();
+                assertThat(valueToken.getType()).isEqualTo(Type.VALUE);
+                assertThat(valueToken.getRaw()).isEqualTo(rawValue);
+                assertThat(valueToken.getText()).isEqualTo(PropertiesParser.unescape(rawValue));
+                assertThat(parser.nextToken()).isNull();
+                assertThat(parser.nextToken()).isNull();
+                assertLoadsLikeJava(input);
+            }
+        }
+    }
+
+    @Test
+    void testContinuedSeparators() throws IOException {
+        for (String eol : new String[] {"\n", "\r", "\r\n"}) {
+            for (String separator : new String[] {"=", ":"}) {
+                assertLoadsLikeJava("key \\" + eol + " \t\f" + separator + " value");
+                assertLoadsLikeJava("key \\" + eol + " \\" + eol + separator + " value");
+                assertLoadsLikeJava("key=" + "\\" + eol + " :value");
+                assertLoadsLikeJava("key" + separator + "\\" + eol + "\\" + eol + " :value");
+                assertLoadsLikeJava("key" + separator + "\\" + eol);
+            }
+        }
+    }
+
+    @Test
+    void testBackslashParity() throws IOException {
+        for (String eol : new String[] {"\n", "\r", "\r\n"}) {
+            for (int count = 0; count < 8; count++) {
+                String slashes = new String(new char[count]).replace('\0', '\\');
+                for (String prefix : new String[] {"key", "key ", "key=", "key=x", "#comment"}) {
+                    for (String tail :
+                            new String[] {" value", " = value", "#comment", "", "\nnext=v"}) {
+                        assertLoadsLikeJava(prefix + slashes + eol + tail);
+                    }
+                }
+            }
+        }
+    }
+
+    private void assertLoadsLikeJava(String input) throws IOException {
+        java.util.Properties expected = new java.util.Properties();
+        expected.load(new StringReader(input));
+        Properties actual = new Properties();
+        actual.load(new StringReader(input));
+        assertThat(actual).as("Input: %s", input).isEqualTo(expected);
+        String raw =
+                PropertiesParser.tokens(new StringReader(input))
+                        .map(Token::getRaw)
+                        .collect(Collectors.joining());
+        assertThat(raw).isEqualTo(input);
+        java.io.StringWriter writer = new java.io.StringWriter();
+        actual.store(writer);
+        assertThat(writer.toString()).isEqualTo(input);
+    }
 }
