@@ -221,6 +221,19 @@ public class TestPropertiesParser {
     }
 
     @Test
+    void testInvalidUnicodeEscapes() {
+        for (String escape :
+                new String[] {"\\u１２３４", "\\u١٢٣٤", "\\uu1234", "\\u123", "\\u12x4", "\\u+123"}) {
+            for (String input : new String[] {"key=" + escape, escape + "=value"}) {
+                assertThatThrownBy(() -> new Properties().load(new StringReader(input)))
+                        .isInstanceOf(IllegalArgumentException.class);
+            }
+            assertThatThrownBy(() -> PropertiesParser.unescape(escape))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
     void testBackslashParity() throws IOException {
         for (String eol : new String[] {"\n", "\r", "\r\n"}) {
             for (int count = 0; count < 8; count++) {
