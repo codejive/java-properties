@@ -1242,9 +1242,30 @@ public class TestProperties {
         Properties keyOnly = Properties.loadProperties(new StringReader("alpha\n"));
         assertThat(keyOnly.afterLastProperty().atEnd()).isTrue();
 
-        Properties commentsOnly = Properties.loadProperties(new StringReader("# header\n\n"));
-        assertThat(commentsOnly.afterLastProperty().atStart()).isTrue();
         assertThat(new Properties().afterLastProperty().atStart()).isTrue();
+    }
+
+    @Test
+    void testAfterLastPropertyWithoutProperties() throws IOException {
+        for (String input :
+                Arrays.asList("", "\n\n", "  ", "# header", "# header\n\n", "  # header\r\n\r\n")) {
+            Properties p = Properties.loadProperties(new StringReader(input));
+            assertThat(p.afterLastProperty().position())
+                    .as("Cursor position for %s", input)
+                    .isEqualTo(p.beforeFirstProperty().position());
+            assertThat(p.afterLastProperty().atEnd()).isTrue();
+        }
+    }
+
+    @Test
+    void testPutAfterLastPropertyWithoutProperties() throws IOException {
+        for (String eol : Arrays.asList("\n", "\r\n")) {
+            String given = "# header" + eol + eol;
+            Properties p = Properties.loadProperties(new StringReader(given));
+            p.put(p.afterLastProperty(), "put", "val");
+            expectStoreText(p, given + "put=val" + eol);
+            assertThat(p.getComment("put")).isEmpty();
+        }
     }
 
     @Test
