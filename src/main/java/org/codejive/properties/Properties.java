@@ -483,11 +483,10 @@ public class Properties extends AbstractMap<String, String> {
 
     // Add a new property to the end of the list of tokens
     private Cursor addNewKeyValue(String rawKey, String key, String rawValue, String value) {
-        Cursor pos = afterLastProperty();
-        if (pos.atStart()) {
-            // We're at the start, meaning there are no properties yet,
-            // but there might be comments, so we move forward again,
-            // skipping any header comments
+        Cursor pos;
+        if (values.isEmpty()) {
+            // There are no properties yet, but there might be comments,
+            // so insert after the header comments.
             pos = afterHeader();
             if (pos.atEnd()) {
                 // afterHeader() leaves at most one blank line after the last comment.
@@ -501,6 +500,8 @@ public class Properties extends AbstractMap<String, String> {
                     pos.addEol(eolType);
                 }
             }
+        } else {
+            pos = afterLastProperty();
         }
         return addNewKeyValue(pos, rawKey, key, rawValue, value);
     }
@@ -1211,10 +1212,10 @@ public class Properties extends AbstractMap<String, String> {
     }
 
     /**
-     * Returns a Cursor pointing to the position past the last property, or to {@code -1} if the
-     * `Properties` object is empty.
+     * Returns a Cursor pointing to the position past the last property. If no properties exist,
+     * behaves like {@link #beforeFirstProperty()}.
      *
-     * @return a Cursor pointing to the right position or {@code -1} if not found
+     * @return a Cursor pointing past the last property, or before the first property if none exist
      */
     public Cursor afterLastProperty() {
         // Track back from end until we encounter the last VALUE token
@@ -1224,9 +1225,10 @@ public class Properties extends AbstractMap<String, String> {
         }
         // Make sure we're either at the start or we've found a property
         validate(pos.atStart() || pos.isType(PropertiesParser.Type.VALUE), pos);
-        if (!pos.atStart()) {
-            pos.next().nextIf(Token::isEol);
+        if (pos.atStart()) {
+            return beforeFirstProperty();
         }
+        pos.next().nextIf(Token::isEol);
         return pos;
     }
 
