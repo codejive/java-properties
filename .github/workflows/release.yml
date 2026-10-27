@@ -59,6 +59,39 @@ jobs:
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.MAVENCENTRAL_PASSWORD }}
 
+      - name: Prepare next development iteration
+        env:
+          DEVELOPMENT_BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || github.event.repository.default_branch }}
+        run: |
+          ./mvnw -B versions:set -DnextSnapshot=true -DgenerateBackupPoms=false
+          NEXT_POM="$RUNNER_TEMP/next-development-pom.xml"
+          cp pom.xml "$NEXT_POM"
+          git restore -- pom.xml
+          git fetch origin "refs/heads/$DEVELOPMENT_BRANCH"
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "The released commit is not on $DEVELOPMENT_BRANCH; update its development version manually."
+            exit 1
+          fi
+          if ! git diff --quiet HEAD FETCH_HEAD -- pom.xml; then
+            if git show FETCH_HEAD:pom.xml | cmp -s - "$NEXT_POM"; then
+              echo "The next development version is already committed."
+              exit 0
+            fi
+            echo "pom.xml changed since the released commit; update its development version manually."
+            exit 1
+          fi
+          git checkout --detach FETCH_HEAD
+          cp "$NEXT_POM" pom.xml
+          if git diff --quiet -- pom.xml; then
+            echo "The next development version is already committed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- pom.xml
+          git commit -m "chore: prepare next development iteration after $JRELEASER_PROJECT_VERSION"
+          git push origin "HEAD:refs/heads/$DEVELOPMENT_BRANCH"
+
       - name: JReleaser release output
         if: always()
         uses: actions/upload-artifact@v7
